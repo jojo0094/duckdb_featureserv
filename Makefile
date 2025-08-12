@@ -61,7 +61,8 @@ build-in-docker: $(GOFILES)   ##    Build a local binary based of a golang base 
 	docker run --rm -v "$(PWD)":/usr/src/myapp:z -w /usr/src/myapp golang:$(GOVERSION) make APPVERSION=$(APPVERSION) $(PROGRAM)
 
 build-common: Dockerfile
-	docker build -f Dockerfile \
+	docker buildx build -f Dockerfile \
+		--platform linux/$(TARGETARCH) \
 		--target $(BUILDTYPE) \
 		--build-arg VERSION=$(APPVERSION) \
 		--build-arg GOLANG_VERSION=$(GOVERSION) \
@@ -71,6 +72,7 @@ build-common: Dockerfile
 		--build-arg BASE_IMAGE=$(BASE_IMAGE) \
 		--label release="$(APPVERSION)" \
 		--label os.version="7.7" \
+		--load \
 		-t $(CONTAINER):$(IMAGE_TAG) -t $(CONTAINER):$(DATE_TAG) .
 	docker image prune --filter label=stage=featureservbuilder -f
 

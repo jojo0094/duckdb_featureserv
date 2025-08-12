@@ -5,10 +5,10 @@ ARG BASE_REGISTRY=registry.access.redhat.com
 ARG BASE_IMAGE=ubi8-micro
 ARG PLATFORM=amd64
 
-FROM docker.io/library/golang:${GOLANG_VERSION}-alpine AS builder
+FROM --platform=$TARGETPLATFORM docker.io/library/golang:${GOLANG_VERSION}-alpine AS builder
 LABEL stage=featureservbuilder
 
-# Install build dependencies for CGO
+# Install build dependencies for CGO  
 RUN apk add --no-cache gcc musl-dev
 
 ARG TARGETARCH
@@ -17,9 +17,8 @@ ARG VERSION
 WORKDIR /app
 COPY . ./
 
-# Build for target architecture - DuckDB should have pre-built bindings
-# Since DuckDB provides pre-built static libraries, we can try without cross-compiler first
-RUN CGO_ENABLED=1 GOOS=linux GOARCH=${TARGETARCH} go build -v -ldflags "-s -w -X github.com/tobilg/duckdb_featureserv/internal/conf.setVersion=${VERSION}"
+# Native build on target platform
+RUN go build -v -ldflags "-s -w -X github.com/tobilg/duckdb_featureserv/internal/conf.setVersion=${VERSION}"
 
 FROM --platform=${TARGETARCH} ${BASE_REGISTRY}/${BASE_IMAGE} AS multi-stage
 
