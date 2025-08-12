@@ -17,7 +17,7 @@ ARG VERSION
 WORKDIR /app
 COPY . ./
 
-RUN CGO_ENABLED=1 GOOS=linux GOARCH=${TARGETARCH} go build -v -ldflags "-s -w -X github.com/tobilg/duckdb_featureserv/internal/conf.setVersion=${VERSION}"
+RUN CGO_ENABLED=1 GOOS=linux GOARCH=${TARGETARCH} go build -v -ldflags "-s -w -X main.programVersion=${VERSION}"
 
 FROM --platform=${TARGETARCH} ${BASE_REGISTRY}/${BASE_IMAGE} AS multi-stage
 
