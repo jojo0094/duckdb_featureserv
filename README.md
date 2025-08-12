@@ -45,8 +45,8 @@ For a full list of software capabilities see [FEATURES](FEATURES.md).
 Builds of the latest code:
 
 * [Linux](https://artifacts.serverless-duckdb.com/duckdb_featureserv_latest_linux.zip)
-* [Windows](https://artifacts.serverless-duckdb.com/duckdb_latest_windows.zip)
-* [MacOS](https://artifacts.serverless-duckdb.com/duckdb_latest_macos.zip)
+* [Windows](https://artifacts.serverless-duckdb.com/duckdb_featureserv_latest_windows.zip)
+* [MacOS](https://artifacts.serverless-duckdb.com/duckdb_featureserv_latest_macos.zip)
 
 ## Build from Source
 
