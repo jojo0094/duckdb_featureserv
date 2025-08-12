@@ -44,12 +44,11 @@ jobs:
 
     - name: Upload Files (windows)
       if: github.repository == 'tobilg/duckdb_featureserv' && github.ref_name == 'main' && runner.os == 'Windows'
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_ENDPOINT_URL: ${{ secrets.AWS_ENDPOINT_URL }}
+        AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
       run: |
-        chcp 65001 #set code page to utf-8
-        echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $env:GITHUB_ENV
-        echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $env:GITHUB_ENV
-        echo "AWS_ENDPOINT_URL=${{ secrets.AWS_ENDPOINT_URL }}" >> $env:GITHUB_ENV
-        echo "AWS_DEFAULT_REGION=${{ secrets.AWS_REGION }}" >> $env:GITHUB_ENV
-
         echo "Uploading files to bucket"
-        aws s3 sync ./upload s3://duckdb-featureserv
+        aws s3 sync ./upload s3://duckdb-featureserv --endpoint-url $env:AWS_ENDPOINT_URL
