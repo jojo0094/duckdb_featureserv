@@ -1,9 +1,9 @@
-ARG GOLANG_VERSION
-ARG TARGETARCH
-ARG VERSION
-ARG BASE_REGISTRY
-ARG BASE_IMAGE
-ARG PLATFORM
+ARG GOLANG_VERSION=1.24.6
+ARG TARGETARCH=amd64
+ARG VERSION=latest
+ARG BASE_REGISTRY=registry.access.redhat.com
+ARG BASE_IMAGE=ubi8-micro
+ARG PLATFORM=amd64
 
 FROM --platform=${PLATFORM} docker.io/library/golang:${GOLANG_VERSION}-alpine AS builder
 LABEL stage=featureservbuilder
@@ -14,7 +14,7 @@ ARG VERSION
 WORKDIR /app
 COPY . ./
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -v -ldflags "-s -w -X main.programVersion=${VERSION}"
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -v -ldflags "-s -w -X github.com/tobilg/duckdb_featureserv/internal/conf.setVersion=${VERSION}"
 
 FROM --platform=${TARGETARCH} ${BASE_REGISTRY}/${BASE_IMAGE} AS multi-stage
 
