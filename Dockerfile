@@ -5,11 +5,11 @@ ARG BASE_REGISTRY=registry.access.redhat.com
 ARG BASE_IMAGE=ubi8-micro
 ARG PLATFORM=amd64
 
-FROM --platform=${PLATFORM} docker.io/library/golang:${GOLANG_VERSION}-alpine AS builder
+FROM --platform=${TARGETARCH} docker.io/library/golang:${GOLANG_VERSION}-alpine AS builder
 LABEL stage=featureservbuilder
 
-# Install build dependencies for CGO
-RUN apk add --no-cache gcc musl-dev
+# Install build dependencies for CGO and cross-compilation
+RUN apk add --no-cache gcc g++ musl-dev linux-headers make
 
 ARG TARGETARCH
 ARG VERSION
@@ -17,7 +17,7 @@ ARG VERSION
 WORKDIR /app
 COPY . ./
 
-RUN CGO_ENABLED=1 GOOS=linux GOARCH=${TARGETARCH} go build -v -ldflags "-s -w -X main.programVersion=${VERSION}"
+RUN CGO_ENABLED=1 go build -v -ldflags "-s -w -X github.com/tobilg/duckdb_featureserv/internal/conf.setVersion=${VERSION}"
 
 FROM --platform=${TARGETARCH} ${BASE_REGISTRY}/${BASE_IMAGE} AS multi-stage
 
