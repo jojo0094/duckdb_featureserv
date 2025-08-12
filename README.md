@@ -40,6 +40,14 @@ For a full list of software capabilities see [FEATURES](FEATURES.md).
 * [**DRAFT** *Common Query Language (CQL2)*](https://docs.ogc.org/DRAFTS/21-065.html)
 * [*GeoJSON*](https://www.rfc-editor.org/rfc/rfc7946.txt)
 
+## Download
+
+Builds of the latest code:
+
+* [Linux](https://artifacts.serverless-duckdb.com/duckdb_featureserv_latest_linux.zip)
+* [Windows](https://artifacts.serverless-duckdb.com/duckdb_latest_windows.zip)
+* [MacOS](https://artifacts.serverless-duckdb.com/duckdb_latest_macos.zip)
+
 ## Build from Source
 
 `duckdb_featureserv` requires Go 1.24+ to support the latest DuckDB driver.
@@ -81,7 +89,7 @@ make APPVERSION=<VERSION> clean docker
 To run using an image built above, and mount a local, pre-made DuckDB database in the container:
 
 ```bash
-docker run --rm -dt -v "$PWD/database.duckdb:/data/database.duckdb" -e DUCKDB_PATH=/data/database.duckd -p 9000:9000 tobilg/duckdb-featureserv:<VERSION>
+docker run --rm -dt -v "$PWD/database.duckdb:/data/database.duckdb" -e DUCKDB_PATH=/data/database.duckdb -p 9000:9000 tobilg/duckdb_featureserv:<VERSION>
 ```
 
 ## Configure the service

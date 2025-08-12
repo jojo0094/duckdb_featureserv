@@ -40,6 +40,4 @@ jobs:
         AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
       run: |
         echo "Uploading files to bucket"
-        mkdir -p ./upload
-
         aws s3 sync ./upload s3://duckdb-featureserv --endpoint-url $AWS_ENDPOINT_URL

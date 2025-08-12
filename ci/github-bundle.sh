@@ -35,6 +35,6 @@ ZIPFILE="duckdb_featureserv_${TAG}_${TARGET}.zip"
 echo "ZIPFILE = $ZIPFILE"
 echo "PAYLOAD = $PAYLOAD"
 
-mkdir upload
+mkdir -p upload
 #zip -r upload/$ZIPFILE $PAYLOAD
 7z a upload/$ZIPFILE $PAYLOAD

@@ -18,7 +18,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -v -ldflags "-s -w -X
 
 FROM --platform=${TARGETARCH} ${BASE_REGISTRY}/${BASE_IMAGE} AS multi-stage
 
-COPY --from=builder /app/pg_featureserv .
+COPY --from=builder /app/duckdb_featureserv .
 COPY --from=builder /app/assets ./assets
 
 VOLUME ["/config"]
@@ -32,7 +32,7 @@ CMD []
 
 FROM --platform=${PLATFORM} ${BASE_REGISTRY}/${BASE_IMAGE} AS local
 
-ADD ./pg_featureserv .
+ADD ./duckdb_featureserv .
 ADD ./assets ./assets
 
 VOLUME ["/config"]
