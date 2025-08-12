@@ -52,4 +52,4 @@ jobs:
         echo "AWS_DEFAULT_REGION=${{ secrets.AWS_REGION }}" >> $env:GITHUB_ENV
 
         echo "Uploading files to bucket"
-        aws s3 sync ./upload s3://duckdb-featureserv --endpoint-url $AWS_ENDPOINT_URL
+        aws s3 sync ./upload s3://duckdb-featureserv
