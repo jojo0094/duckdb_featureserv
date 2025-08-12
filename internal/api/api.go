@@ -18,9 +18,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/CrunchyData/pg_featureserv/internal/conf"
-	"github.com/CrunchyData/pg_featureserv/internal/data"
 	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/tobilg/duckdb_featureserv/internal/conf"
+	"github.com/tobilg/duckdb_featureserv/internal/data"
 )
 
 const (
@@ -194,7 +194,7 @@ var ParameterSchema openapi3.Schema = openapi3.Schema{
 
 // Bbox for extent
 type Bbox struct {
-	Crs    string    `json:"crs"`
+	Crs    string      `json:"crs"`
 	Extent [][]float64 `json:"bbox"`
 }
 

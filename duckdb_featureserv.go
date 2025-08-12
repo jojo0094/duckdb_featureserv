@@ -15,13 +15,17 @@ package main
 
 /*
 # Running
-Usage: ./pg_featureserv [ -test ]
+Usage: ./duckdb_featureserv [ -test ] [ --duckdb /path/to/database.db ] [ --table tablename ]
 
 Browser: e.g. http://localhost:9000/index.html
 
 # Configuration
-Database URL in env var `DATABASE_URL`
-Example: `export DATABASE_URL="host=localhost"`
+DuckDB file path in env var `DUCKDB_PATH`
+Example: `export DUCKDB_PATH="/path/to/database.db"`
+
+Table name in env var `DUCKDB_TABLE` (optional)
+Example: `export DUCKDB_TABLE="my_spatial_table"`
+If not specified, all tables with geometry columns will be served as collections
 
 # Logging
 Logging to stdout
@@ -31,10 +35,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/CrunchyData/pg_featureserv/internal/conf"
-	"github.com/CrunchyData/pg_featureserv/internal/data"
-	"github.com/CrunchyData/pg_featureserv/internal/service"
-	"github.com/CrunchyData/pg_featureserv/internal/ui"
+	"github.com/tobilg/duckdb_featureserv/internal/conf"
+	"github.com/tobilg/duckdb_featureserv/internal/data"
+	"github.com/tobilg/duckdb_featureserv/internal/service"
+	"github.com/tobilg/duckdb_featureserv/internal/ui"
 
 	"github.com/pborman/getopt/v2"
 	log "github.com/sirupsen/logrus"
@@ -46,6 +50,8 @@ var flagDevModeOn bool
 var flagHelp bool
 var flagVersion bool
 var flagConfigFilename string
+var flagDuckDBPath string
+var flagTableName string
 
 func init() {
 	initCommnandOptions()
@@ -58,6 +64,8 @@ func initCommnandOptions() {
 	getopt.FlagLong(&flagDevModeOn, "devel", 0, "Run in development mode")
 	getopt.FlagLong(&flagTestModeOn, "test", 't', "Serve mock data for testing")
 	getopt.FlagLong(&flagVersion, "version", 'v', "Output the version information")
+	getopt.FlagLong(&flagDuckDBPath, "duckdb", 0, "", "Path to DuckDB database file")
+	getopt.FlagLong(&flagTableName, "table", 0, "", "Name of spatial table to serve (if not specified, all tables with geometry columns will be served)")
 }
 
 func main() {
@@ -76,6 +84,14 @@ func main() {
 	log.Infof("----  %s - Version %s ----------\n", conf.AppConfig.Name, conf.AppConfig.Version)
 
 	conf.InitConfig(flagConfigFilename, flagDebugOn)
+
+	// Set DuckDB parameters from command line if provided
+	if flagDuckDBPath != "" {
+		conf.Configuration.Database.DbConnection = flagDuckDBPath
+	}
+	if flagTableName != "" {
+		conf.Configuration.Database.TableName = flagTableName
+	}
 
 	if flagTestModeOn || flagDevModeOn {
 		ui.HTMLDynamicLoad = true

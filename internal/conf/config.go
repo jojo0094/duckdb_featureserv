@@ -39,8 +39,6 @@ func setDefaultConfig() {
 	viper.SetDefault("Server.ReadTimeoutSec", 5)
 	viper.SetDefault("Server.WriteTimeoutSec", 30)
 
-	viper.SetDefault("Database.DbPoolMaxConnLifeTime", "1h")
-	viper.SetDefault("Database.DbPoolMaxConns", 4)
 	viper.SetDefault("Database.TableIncludes", []string{})
 	viper.SetDefault("Database.TableExcludes", []string{})
 	viper.SetDefault("Database.FunctionIncludes", []string{"postgisftw"})
@@ -48,8 +46,8 @@ func setDefaultConfig() {
 	viper.SetDefault("Paging.LimitDefault", 10)
 	viper.SetDefault("Paging.LimitMax", 1000)
 
-	viper.SetDefault("Metadata.Title", "pg-featureserv")
-	viper.SetDefault("Metadata.Description", "Crunchy Data Feature Server for PostGIS")
+	viper.SetDefault("Metadata.Title", "duckdb_featureserv")
+	viper.SetDefault("Metadata.Description", "DuckDB Feature Server with Spatial Extension")
 
 	viper.SetDefault("Website.BasemapUrl", "")
 }
@@ -88,12 +86,11 @@ type Paging struct {
 
 // Database config
 type Database struct {
-	DbConnection          string
-	DbPoolMaxConnLifeTime string
-	DbPoolMaxConns        int
-	TableIncludes         []string
-	TableExcludes         []string
-	FunctionIncludes      []string
+	DbConnection     string
+	TableIncludes    []string
+	TableExcludes    []string
+	FunctionIncludes []string
+	TableName        string
 }
 
 // Metadata config
@@ -157,11 +154,20 @@ func InitConfig(configFilename string, isDebug bool) {
 	// It takes precedence over config file (if any)
 	// A blank value is ignored
 	dbconnSrc := "config file"
-	if dbURL := os.Getenv(AppConfig.EnvDBURL); dbURL != "" {
-		Configuration.Database.DbConnection = dbURL
+	if dbPath := os.Getenv(AppConfig.EnvDBURL); dbPath != "" {
+		Configuration.Database.DbConnection = dbPath
 		dbconnSrc = "environment variable " + AppConfig.EnvDBURL
 	}
+
+	// Read table name from environment variable
+	if tableName := os.Getenv("DUCKDB_TABLE"); tableName != "" {
+		Configuration.Database.TableName = tableName
+	}
+
 	log.Infof("Using database connection info from %v", dbconnSrc)
+	if Configuration.Database.TableName != "" {
+		log.Infof("Serving table: %v", Configuration.Database.TableName)
+	}
 
 	// sanitize the configuration
 	Configuration.Server.BasePath = strings.TrimRight(Configuration.Server.BasePath, "/")

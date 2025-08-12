@@ -27,7 +27,7 @@ VOLUME ["/assets"]
 USER 1001
 EXPOSE 9000
 
-ENTRYPOINT ["./pg_featureserv"]
+ENTRYPOINT ["./duckdb_featureserv"]
 CMD []
 
 FROM --platform=${PLATFORM} ${BASE_REGISTRY}/${BASE_IMAGE} AS local
@@ -41,7 +41,7 @@ VOLUME ["/assets"]
 USER 1001
 EXPOSE 9000
 
-ENTRYPOINT ["./pg_featureserv"]
+ENTRYPOINT ["./duckdb_featureserv"]
 CMD []
 
 # To build
@@ -49,6 +49,3 @@ CMD []
 
 # To build using binaries from golang docker image
 # make APPVERSION=1.1 clean multi-stage-docker
-
-# To run using an image build above
-# docker run -dt -e DATABASE_URL=postgres://user:pass@host/dbname -p 9000:9000 pramsey/pg_featureserv:1.1

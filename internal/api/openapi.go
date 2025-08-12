@@ -16,7 +16,7 @@ package api
 import (
 	"net/url"
 
-	"github.com/CrunchyData/pg_featureserv/internal/conf"
+	"github.com/tobilg/duckdb_featureserv/internal/conf"
 	"github.com/getkin/kin-openapi/openapi3"
 	log "github.com/sirupsen/logrus"
 )

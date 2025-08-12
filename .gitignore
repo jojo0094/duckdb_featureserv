@@ -1,7 +1,7 @@
-pg_featureserv
-pg_featureserv.exe
+duckdb_featureserv
+duckdb_featureserv.exe
 launch.json
 docs/
 public/
-config/pg_featureserv.toml
-hugo/.hugo_build.lock
+config/duckdb_featureserv.toml
+*.duckdb

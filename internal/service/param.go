@@ -20,10 +20,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/CrunchyData/pg_featureserv/internal/api"
-	"github.com/CrunchyData/pg_featureserv/internal/conf"
-	"github.com/CrunchyData/pg_featureserv/internal/cql"
-	"github.com/CrunchyData/pg_featureserv/internal/data"
+	"github.com/tobilg/duckdb_featureserv/internal/api"
+	"github.com/tobilg/duckdb_featureserv/internal/conf"
+	"github.com/tobilg/duckdb_featureserv/internal/cql"
+	"github.com/tobilg/duckdb_featureserv/internal/data"
 )
 
 func parseRequestParams(r *http.Request) (api.RequestParam, error) {
@@ -140,7 +140,19 @@ func extractSingleArgs(queryArgs url.Values) api.NameValMap {
 }
 
 func parseString(values api.NameValMap, key string) string {
-	return strings.TrimSpace(values[key])
+	val := strings.TrimSpace(values[key])
+	// Handle malformed URL encoding like %2 followed by space
+	// This can happen with double-encoded URLs that decode to invalid sequences
+	val = fixMalformedURLEncoding(val)
+	return val
+}
+
+// fixMalformedURLEncoding handles cases where URL decoding results in invalid escape sequences
+func fixMalformedURLEncoding(s string) string {
+	// Fix %2 followed by space (should be %20)
+	s = strings.ReplaceAll(s, "%2 ", " ")
+	// Fix other common malformed sequences if needed
+	return s
 }
 
 func parseInt(values api.NameValMap, key string, minVal int, maxVal int, defaultVal int) (int, error) {
@@ -214,7 +226,7 @@ func parseBbox(values api.NameValMap) (*data.Extent, error) {
 	return &bbox, nil
 }
 
-// parseProperties extracts an array of rawo property names to be included
+// parseProperties extracts an array of raw property names to be included
 // returns nil if no properties parameter was specified
 // returns[] if properties is present but with no args
 func parseProperties(values api.NameValMap) ([]string, error) {
@@ -227,9 +239,18 @@ func parseProperties(values api.NameValMap) ([]string, error) {
 	if len(val) < 1 {
 		return []string{}, nil
 	}
-	// return array of raw property names
+	// return array of raw property names, handling quoted column names
 	namesRaw := strings.Split(val, ",")
-	return namesRaw, nil
+	var cleanNames []string
+	for _, name := range namesRaw {
+		cleanName := strings.TrimSpace(name)
+		// Remove surrounding quotes if present
+		if len(cleanName) >= 2 && cleanName[0] == '"' && cleanName[len(cleanName)-1] == '"' {
+			cleanName = cleanName[1 : len(cleanName)-1]
+		}
+		cleanNames = append(cleanNames, cleanName)
+	}
+	return cleanNames, nil
 }
 
 func parseGroupBy(values api.NameValMap) ([]string, error) {

@@ -133,12 +133,14 @@ func (l *cqlListener) GetSQL() string {
 }
 
 func (l *cqlListener) sqlGeometryLiteral(wkt string) string {
-	sql := fmt.Sprintf("'SRID=%d;%s'::geometry", l.filterSRID, wkt)
+	// DuckDB spatial uses ST_GeomFromText without SRID prefix
+	sql := fmt.Sprintf("ST_GeomFromText('%s')", wkt)
 	return sql
 }
 
 func (l *cqlListener) sqlEnvelopeLiteral(xmin string, ymin string, xmax string, ymax string) string {
-	return fmt.Sprintf("ST_MakeEnvelope(%s,%s,%s,%s,%d)", xmin, ymin, xmax, ymax, l.filterSRID)
+	// DuckDB spatial requires DOUBLE parameters and doesn't support SRID parameter
+	return fmt.Sprintf("ST_MakeEnvelope(%s::DOUBLE,%s::DOUBLE,%s::DOUBLE,%s::DOUBLE)", xmin, ymin, xmax, ymax)
 }
 
 func (l *cqlListener) sqlTransformCrs(sql string) string {

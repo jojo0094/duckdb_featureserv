@@ -177,6 +177,7 @@
    END OF TERMS AND CONDITIONS
 
    Copyright 2017 - 2025 Crunchy Data Solutions, Inc.
+   Copyright 2025 TobiLG <tobilg@gmail.com> for the duckdb_featureserv fork
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.

@@ -15,18 +15,16 @@ package data
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
 	"time"
 
-	"github.com/CrunchyData/pg_featureserv/internal/conf"
-	"github.com/jackc/pgtype"
-	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/log/logrusadapter"
-	"github.com/jackc/pgx/v4/pgxpool"
+	_ "github.com/marcboeker/go-duckdb/v2"
 	log "github.com/sirupsen/logrus"
+	"github.com/tobilg/duckdb_featureserv/internal/conf"
 )
 
 // Constants
@@ -39,16 +37,15 @@ const (
 	JSONTypeStringArray  = "string[]"
 	JSONTypeNumberArray  = "number[]"
 
-	PGTypeBool      = "bool"
-	PGTypeNumeric   = "numeric"
-	PGTypeJSON      = "json"
-	PGTypeJSONB     = "jsonb"
-	PGTypeGeometry  = "geometry"
-	PGTypeTextArray = "_text"
+	DuckDBTypeBool     = "BOOLEAN"
+	DuckDBTypeNumeric  = "DOUBLE"
+	DuckDBTypeJSON     = "JSON"
+	DuckDBTypeGeometry = "GEOMETRY"
+	DuckDBTypeText     = "VARCHAR"
 )
 
 type catalogDB struct {
-	dbconn        *pgxpool.Pool
+	dbconn        *sql.DB
 	tableIncludes map[string]string
 	tableExcludes map[string]string
 	tables        []*Table
@@ -82,51 +79,33 @@ func newCatalogDB() catalogDB {
 	return cat
 }
 
-func dbConnect() *pgxpool.Pool {
-	dbconfig := dbConfig()
+func dbConnect() *sql.DB {
+	dbPath := conf.Configuration.Database.DbConnection
 
-	db, err := pgxpool.ConnectConfig(context.Background(), dbconfig)
-	if err != nil {
-		log.Fatal(err)
-	}
-	dbName := dbconfig.ConnConfig.Config.Database
-	dbUser := dbconfig.ConnConfig.Config.User
-	dbHost := dbconfig.ConnConfig.Config.Host
-	log.Infof("Connected as %s to %s @ %s", dbUser, dbName, dbHost)
-	return db
-}
-
-func dbConfig() *pgxpool.Config {
-	dbconf := conf.Configuration.Database.DbConnection
 	// disallow blank config for safety
-	if dbconf == "" {
-		log.Fatal("Blank DbConnection is disallowed for security reasons")
+	if dbPath == "" {
+		log.Fatal("Blank DuckDB path is disallowed for security reasons")
 	}
 
-	dbconfig, err := pgxpool.ParseConfig(conf.Configuration.Database.DbConnection)
+	db, err := sql.Open("duckdb", dbPath)
 	if err != nil {
 		log.Fatal(err)
 	}
-	// Read and parse connection lifetime
-	dbPoolMaxLifeTime, errt := time.ParseDuration(conf.Configuration.Database.DbPoolMaxConnLifeTime)
-	if errt != nil {
-		log.Fatal(errt)
-	}
-	dbconfig.MaxConnLifetime = dbPoolMaxLifeTime
 
-	// Read and parse max connections
-	dbPoolMaxConns := conf.Configuration.Database.DbPoolMaxConns
-	if dbPoolMaxConns > 0 {
-		dbconfig.MaxConns = int32(dbPoolMaxConns)
+	// Test the connection
+	err = db.Ping()
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	// Read current log level and use one less-fine level
-	dbconfig.ConnConfig.Logger = logrusadapter.NewLogger(log.New())
-	levelString, _ := (log.GetLevel() - 1).MarshalText()
-	pgxLevel, _ := pgx.LogLevelFromString(string(levelString))
-	dbconfig.ConnConfig.LogLevel = pgxLevel
+	// Load spatial extension
+	_, err = db.Exec("INSTALL spatial; LOAD spatial;")
+	if err != nil {
+		log.Warnf("Failed to load spatial extension: %v", err)
+	}
 
-	return dbconfig
+	log.Infof("Connected to DuckDB: %s", dbPath)
+	return db
 }
 
 func (cat *catalogDB) SetIncludeExclude(includeList []string, excludeList []string) {
@@ -170,24 +149,25 @@ func (cat *catalogDB) TableReload(name string) {
 
 func (cat *catalogDB) loadExtent(sql string, tbl *Table) bool {
 	var (
-		xmin pgtype.Float8
-		xmax pgtype.Float8
-		ymin pgtype.Float8
-		ymax pgtype.Float8
+		xmin *float64
+		xmax *float64
+		ymin *float64
+		ymax *float64
 	)
 	log.Debug("Extent query: " + sql)
-	err := cat.dbconn.QueryRow(context.Background(), sql).Scan(&xmin, &ymin, &xmax, &ymax)
+	err := cat.dbconn.QueryRow(sql).Scan(&xmin, &ymin, &xmax, &ymax)
 	if err != nil {
 		log.Debugf("Error querying Extent for %s: %v", tbl.ID, err)
-	}
-	// no extent was read (perhaps a view...)
-	if xmin.Status == pgtype.Null {
 		return false
 	}
-	tbl.Extent.Minx = xmin.Float
-	tbl.Extent.Miny = ymin.Float
-	tbl.Extent.Maxx = xmax.Float
-	tbl.Extent.Maxy = ymax.Float
+	// no extent was read (perhaps a view...)
+	if xmin == nil {
+		return false
+	}
+	tbl.Extent.Minx = *xmin
+	tbl.Extent.Miny = *ymin
+	tbl.Extent.Maxx = *xmax
+	tbl.Extent.Maxy = *ymax
 	return true
 }
 
@@ -260,24 +240,48 @@ func tablesSorted(tableMap map[string]*Table) []*Table {
 	return lsort
 }
 
-func (cat *catalogDB) readTables(db *pgxpool.Pool) map[string]*Table {
-	log.Debugf("Load table catalog:\n%v", sqlTables)
-	rows, err := db.Query(context.Background(), sqlTables)
+func (cat *catalogDB) readTables(db *sql.DB) map[string]*Table {
+	tableName := conf.Configuration.Database.TableName
+
+	var rows *sql.Rows
+	var err error
+
+	if tableName == "" {
+		// No specific table specified, discover all tables with geometry columns
+		log.Info("No table name specified, discovering all tables with geometry columns")
+		rows, err = db.Query(sqlTables)
+	} else {
+		// Specific table requested
+		log.Debugf("Load table catalog for table: %v", tableName)
+		rows, err = db.Query(sqlTablesSpecific, tableName)
+	}
+
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer rows.Close()
+
 	tables := make(map[string]*Table)
 	for rows.Next() {
-		tbl := scanTable(rows)
+		tbl := scanTable(cat.dbconn, rows)
 		if cat.isIncluded(tbl) {
 			tables[tbl.ID] = tbl
+			log.Infof("Added table collection: %s (geometry column: %s)", tbl.ID, tbl.GeometryColumn)
 		}
 	}
 	// Check for errors from iterating over rows.
 	if err := rows.Err(); err != nil {
 		log.Fatal(err)
 	}
-	rows.Close()
+
+	if len(tables) == 0 {
+		if tableName == "" {
+			log.Warn("No tables with geometry columns found in database")
+		} else {
+			log.Warnf("Table '%s' not found or does not contain geometry columns", tableName)
+		}
+	}
+
 	return tables
 }
 
@@ -306,53 +310,22 @@ func isMatchSchemaTable(tbl *Table, list map[string]string) bool {
 	return false
 }
 
-func scanTable(rows pgx.Rows) *Table {
+func scanTable(db *sql.DB, rows *sql.Rows) *Table {
 	var (
 		id, schema, table, description, geometryCol string
 		srid                                        int
 		geometryType, idColumn                      string
-		props                                       pgtype.TextArray
+		propsStr                                    string
 	)
 
 	err := rows.Scan(&id, &schema, &table, &description, &geometryCol,
-		&srid, &geometryType, &idColumn, &props)
+		&srid, &geometryType, &idColumn, &propsStr)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Use https://godoc.org/github.com/jackc/pgtype#TextArray
-	// here to scan the text[][] map of attribute name/type
-	// created in the query. It gets a little ugly demapping the
-	// pgx TextArray type, but it is at least native handling of
-	// the array. It's complex because of PgSQL ARRAY generality
-	// really, no fault of pgx
-
-	arrLen := 0
-	arrStart := 0
-	elmLen := 0
-	if props.Status != pgtype.Null {
-		arrLen = int(props.Dimensions[0].Length)
-		arrStart = int(props.Dimensions[0].LowerBound - 1)
-		elmLen = int(props.Dimensions[1].Length)
-	}
-
-	// TODO: query columns in table-defined order
-
-	// Since Go map order is random, list columns in array
-	columns := make([]string, arrLen)
-	jsontypes := make([]string, arrLen)
-	datatypes := make(map[string]string)
-	colDesc := make([]string, arrLen)
-
-	for i := arrStart; i < arrLen; i++ {
-		elmPos := i * elmLen
-		name := props.Elements[elmPos].String
-		datatype := props.Elements[elmPos+1].String
-		columns[i] = name
-		datatypes[name] = datatype
-		jsontypes[i] = toJSONTypeFromPG(datatype)
-		colDesc[i] = props.Elements[elmPos+2].String
-	}
+	// For DuckDB, we'll get column information through a separate query
+	columns, datatypes, jsontypes, colDesc := getTableColumns(db, table)
 
 	// Synthesize a title for now
 	title := id
@@ -378,17 +351,63 @@ func scanTable(rows pgx.Rows) *Table {
 	}
 }
 
+func getTableColumns(db *sql.DB, tableName string) ([]string, map[string]string, []string, []string) {
+	query := `SELECT column_name, data_type 
+	          FROM information_schema.columns 
+	          WHERE table_name = ? 
+	          AND column_name != 'geom'
+	          ORDER BY ordinal_position`
+
+	rows, err := db.Query(query, tableName)
+	if err != nil {
+		log.Warnf("Error getting columns for table %s: %v", tableName, err)
+		// Return minimal fallback
+		return []string{"id"}, map[string]string{"id": "INTEGER"}, []string{"number"}, []string{"Identifier column"}
+	}
+	defer rows.Close()
+
+	var columns []string
+	datatypes := make(map[string]string)
+	var jsontypes []string
+	var colDesc []string
+
+	for rows.Next() {
+		var columnName, dataType string
+		err := rows.Scan(&columnName, &dataType)
+		if err != nil {
+			log.Warnf("Error scanning column info: %v", err)
+			continue
+		}
+
+		columns = append(columns, columnName)
+		datatypes[columnName] = dataType
+		jsontypes = append(jsontypes, toJSONTypeFromDuckDB(dataType))
+		colDesc = append(colDesc, fmt.Sprintf("Column %s of type %s", columnName, dataType))
+	}
+
+	// Ensure we have at least one column
+	if len(columns) == 0 {
+		columns = []string{"id"}
+		datatypes["id"] = "INTEGER"
+		jsontypes = []string{"number"}
+		colDesc = []string{"Identifier column"}
+	}
+
+	log.Debugf("Table %s columns: %v", tableName, columns)
+	return columns, datatypes, jsontypes, colDesc
+}
+
 //=================================================
 
 //nolint:unused
-func readFeatures(ctx context.Context, db *pgxpool.Pool, sql string, idColIndex int, propCols []string) ([]string, error) {
+func readFeatures(ctx context.Context, db *sql.DB, sql string, idColIndex int, propCols []string) ([]string, error) {
 	return readFeaturesWithArgs(ctx, db, sql, nil, idColIndex, propCols)
 }
 
 //nolint:unused
-func readFeaturesWithArgs(ctx context.Context, db *pgxpool.Pool, sql string, args []interface{}, idColIndex int, propCols []string) ([]string, error) {
+func readFeaturesWithArgs(ctx context.Context, db *sql.DB, sql string, args []interface{}, idColIndex int, propCols []string) ([]string, error) {
 	start := time.Now()
-	rows, err := db.Query(ctx, sql, args...)
+	rows, err := db.QueryContext(ctx, sql, args...)
 	if err != nil {
 		log.Warnf("Error running Features query: %v", err)
 		return nil, err
@@ -403,7 +422,7 @@ func readFeaturesWithArgs(ctx context.Context, db *pgxpool.Pool, sql string, arg
 	return data, nil
 }
 
-func scanFeatures(ctx context.Context, rows pgx.Rows, idColIndex int, propCols []string) ([]string, error) {
+func scanFeatures(ctx context.Context, rows *sql.Rows, idColIndex int, propCols []string) ([]string, error) {
 	// init features array to empty (not nil)
 	var features []string = []string{}
 	for rows.Next() {
@@ -426,29 +445,61 @@ func scanFeatures(ctx context.Context, rows pgx.Rows, idColIndex int, propCols [
 	return features, nil
 }
 
-func scanFeature(rows pgx.Rows, idColIndex int, propNames []string) string {
+func scanFeature(rows *sql.Rows, idColIndex int, propNames []string) string {
 	var id, geom string
-	vals, err := rows.Values()
+
+	// Get column names to dynamically scan
+	columns, err := rows.Columns()
+	if err != nil {
+		log.Warnf("Error getting columns: %v", err)
+		return ""
+	}
+
+	// Create a slice to hold values
+	values := make([]interface{}, len(columns))
+	valuePtrs := make([]interface{}, len(columns))
+	for i := range values {
+		valuePtrs[i] = &values[i]
+	}
+
+	err = rows.Scan(valuePtrs...)
 	if err != nil {
 		log.Warnf("Error scanning row for Feature: %v", err)
 		return ""
 	}
-	//fmt.Println(vals)
+
 	//--- geom value is expected to be a GeoJSON string
 	//--- convert NULL to an empty string
-	if vals[0] != nil {
-		geom = vals[0].(string)
+	if values[0] != nil {
+		if geomStr, ok := values[0].(string); ok {
+			geom = geomStr
+		} else if geomBytes, ok := values[0].([]byte); ok {
+			// Handle binary geometry data by converting to string
+			geom = string(geomBytes)
+		} else {
+			// Handle case where DuckDB returns geometry as a map structure
+			// Convert it to JSON string
+			if geomJSON, err := json.Marshal(values[0]); err == nil {
+				geom = string(geomJSON)
+				log.Debugf("Converted geometry map to JSON: %s", geom)
+			} else {
+				log.Warnf("Failed to convert geometry to JSON: %v, error: %v", values[0], err)
+				geom = ""
+			}
+		}
+		// Additional debugging info
+		log.Debugf("Raw geometry data (first 100 chars): %s", truncateString(geom, 100))
 	} else {
 		geom = ""
 	}
 
 	propOffset := 1
 	if idColIndex >= 0 {
-		id = fmt.Sprintf("%v", vals[idColIndex+propOffset])
+		id = fmt.Sprintf("%v", values[idColIndex+propOffset])
 	}
 
 	//fmt.Println(geom)
-	props := extractProperties(vals, propOffset, propNames)
+	props := extractProperties(values, propOffset, propNames)
 	return makeFeatureJSON(id, geom, props)
 }
 
@@ -462,95 +513,81 @@ func extractProperties(vals []interface{}, propOffset int, propNames []string) m
 	return props
 }
 
-// toJSONValue convert PG types to JSON values
+// toJSONValue converts DuckDB types to JSON values
 func toJSONValue(value interface{}) interface{} {
-	//fmt.Printf("toJSONValue: %v\n", reflect.TypeOf(value))
-	switch v := value.(type) {
-	case *pgtype.Numeric:
-		var num float64
-		// TODO: handle error
-		v.AssignTo(&num) //nolint:errcheck
-		return num
-	case *pgtype.JSON:
-		var jsonval string
-		v.AssignTo(&jsonval) //nolint:errcheck
-		return json.RawMessage(jsonval)
-	case *pgtype.TextArray:
-		var strarr []string
-		v.AssignTo(&strarr) //nolint:errcheck
-		return strarr
-	case *pgtype.BoolArray:
-		var valarr []bool
-		v.AssignTo(&valarr) //nolint:errcheck
-		return valarr
-	case *pgtype.Int2Array:
-		var numarr []int16
-		v.AssignTo(&numarr) //nolint:errcheck
-		return numarr
-	case *pgtype.Int4Array:
-		var numarr []int32
-		v.AssignTo(&numarr) //nolint:errcheck
-		return numarr
-	case *pgtype.Int8Array:
-		var numarr []int64
-		v.AssignTo(&numarr) //nolint:errcheck
-		return numarr
-	case *pgtype.Float4Array:
-		var numarr []float64
-		v.AssignTo(&numarr) //nolint:errcheck
-		return numarr
-	case *pgtype.Float8Array:
-		var numarr []float64
-		v.AssignTo(&numarr) //nolint:errcheck
-		return numarr
-	case *pgtype.NumericArray:
-		var numarr []float64
-		v.AssignTo(&numarr) //nolint:errcheck
-		return numarr
-		// TODO: handle other conversions?
+	// Handle NULL values
+	if value == nil {
+		return nil
 	}
-	// for now all other values are returned  as is
-	// this is only safe if the values are text!
-	return value
+
+	// For DuckDB, most values can be used directly as JSON
+	// since they're already in Go native types
+	switch v := value.(type) {
+	case []byte:
+		// Convert byte arrays to strings
+		return string(v)
+	case sql.NullString:
+		if v.Valid {
+			return v.String
+		}
+		return nil
+	case sql.NullInt64:
+		if v.Valid {
+			return v.Int64
+		}
+		return nil
+	case sql.NullFloat64:
+		if v.Valid {
+			return v.Float64
+		}
+		return nil
+	case sql.NullBool:
+		if v.Valid {
+			return v.Bool
+		}
+		return nil
+	default:
+		// For most Go native types, return as-is
+		return value
+	}
 }
 
-func toJSONTypeFromPGArray(pgTypes []string) []string {
-	jsonTypes := make([]string, len(pgTypes))
-	for i, pgType := range pgTypes {
-		jsonTypes[i] = toJSONTypeFromPG(pgType)
+func toJSONTypeFromDuckDBArray(duckdbTypes []string) []string {
+	jsonTypes := make([]string, len(duckdbTypes))
+	for i, duckdbType := range duckdbTypes {
+		jsonTypes[i] = toJSONTypeFromDuckDB(duckdbType)
 	}
 	return jsonTypes
 }
 
-func toJSONTypeFromPG(pgType string) string {
-	//fmt.Printf("toJSONTypeFromPG: %v\n", pgType)
-	if strings.HasPrefix(pgType, "int") || strings.HasPrefix(pgType, "float") {
+func toJSONTypeFromDuckDB(duckdbType string) string {
+	//fmt.Printf("toJSONTypeFromDuckDB: %v\n", duckdbType)
+	switch strings.ToUpper(duckdbType) {
+	case "INTEGER", "BIGINT", "SMALLINT", "TINYINT":
 		return JSONTypeNumber
-	}
-	if strings.HasPrefix(pgType, "_int") || strings.HasPrefix(pgType, "_float") {
-		return JSONTypeNumberArray
-	}
-	if strings.HasPrefix(pgType, "_bool") {
-		return JSONTypeBooleanArray
-	}
-	switch pgType {
-	case PGTypeNumeric:
+	case "DOUBLE", "REAL", "DECIMAL", "NUMERIC":
 		return JSONTypeNumber
-	case PGTypeBool:
+	case "BOOLEAN":
 		return JSONTypeBoolean
-	case PGTypeJSON:
+	case "JSON":
 		return JSONTypeJSON
-	case PGTypeJSONB:
-		return JSONTypeJSON
-	case PGTypeTextArray:
-		return JSONTypeStringArray
-	// hack to allow displaying geometry type
-	case PGTypeGeometry:
-		return PGTypeGeometry
+	case "VARCHAR", "TEXT", "CHAR":
+		return JSONTypeString
+	case "GEOMETRY":
+		return JSONTypeString // GeoJSON is represented as string
+	default:
+		// For arrays and other complex types, default to string
+		if strings.Contains(duckdbType, "[]") {
+			if strings.Contains(duckdbType, "INTEGER") || strings.Contains(duckdbType, "DOUBLE") {
+				return JSONTypeNumberArray
+			}
+			if strings.Contains(duckdbType, "BOOLEAN") {
+				return JSONTypeBooleanArray
+			}
+			return JSONTypeStringArray
+		}
+		return JSONTypeString
 	}
-	// default is string
-	// this forces conversion to text in SQL query
-	return JSONTypeString
 }
 
 type featureData struct {
@@ -564,7 +601,15 @@ func makeFeatureJSON(id string, geom string, props map[string]interface{}) strin
 	//--- convert empty geom string to JSON null
 	var geomRaw json.RawMessage
 	if geom != "" {
-		geomRaw = json.RawMessage(geom)
+		// Validate that geom is valid JSON before using it
+		if json.Valid([]byte(geom)) {
+			geomRaw = json.RawMessage(geom)
+		} else {
+			log.Warnf("Invalid geometry JSON, using null: %s", geom)
+			geomRaw = json.RawMessage("null")
+		}
+	} else {
+		geomRaw = json.RawMessage("null")
 	}
 
 	featData := featureData{
@@ -573,12 +618,12 @@ func makeFeatureJSON(id string, geom string, props map[string]interface{}) strin
 		Geom:  &geomRaw,
 		Props: props,
 	}
-	json, err := json.Marshal(featData)
+	jsonBytes, err := json.Marshal(featData)
 	if err != nil {
 		log.Errorf("Error marshalling feature into JSON: %v", err)
 		return ""
 	}
-	jsonStr := string(json)
+	jsonStr := string(jsonBytes)
 	//fmt.Println(jsonStr)
 	return jsonStr
 }
@@ -592,4 +637,12 @@ func indexOfName(names []string, name string) int {
 		}
 	}
 	return -1
+}
+
+// truncateString truncates a string to maxLen characters for debugging
+func truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
 }

@@ -20,10 +20,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/CrunchyData/pg_featureserv/internal/api"
-	"github.com/CrunchyData/pg_featureserv/internal/conf"
-	"github.com/CrunchyData/pg_featureserv/internal/data"
-	"github.com/CrunchyData/pg_featureserv/internal/ui"
+	"github.com/tobilg/duckdb_featureserv/internal/api"
+	"github.com/tobilg/duckdb_featureserv/internal/conf"
+	"github.com/tobilg/duckdb_featureserv/internal/data"
+	"github.com/tobilg/duckdb_featureserv/internal/ui"
 	"github.com/gorilla/mux"
 )
 

@@ -13,7 +13,7 @@ package conf
  limitations under the License.
 */
 
-var setVersion string = "1.3.1"
+var setVersion string = "0.1.0"
 
 // AppConfiguration is the set of global application configuration constants.
 type AppConfiguration struct {
@@ -26,8 +26,8 @@ type AppConfiguration struct {
 }
 
 var AppConfig = AppConfiguration{
-	Name:      "pg_featureserv",
+	Name:      "duckdb_featureserv",
 	Version:   setVersion,
-	EnvDBURL:  "DATABASE_URL",
-	EnvPrefix: "PGFS",
+	EnvDBURL:  "DUCKDB_PATH",
+	EnvPrefix: "DUCKDBFS",
 }

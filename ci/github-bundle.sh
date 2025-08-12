@@ -17,20 +17,20 @@ else
     exit 1
 fi
 
-if [ "$GITHUB_REF_NAME" = "master" ]; then
+if [ "$GITHUB_REF_NAME" = "main" ]; then
     TAG="latest"
 else
     TAG=$GITHUB_REF_NAME
 fi
 
 if [ "$MATRIX_OS" = "windows-latest" ]; then
-    BINARY=pg_featureserv.exe
+    BINARY=duckdb_featureserv.exe
 else
-    BINARY=pg_featureserv
+    BINARY=duckdb_featureserv
 fi
 
 PAYLOAD="${BINARY} README.md LICENSE.md assets/ config/"
-ZIPFILE="pg_featureserv_${TAG}_${TARGET}.zip"
+ZIPFILE="duckdb_featureserv_${TAG}_${TARGET}.zip"
 
 echo "ZIPFILE = $ZIPFILE"
 echo "PAYLOAD = $PAYLOAD"

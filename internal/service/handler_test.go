@@ -26,9 +26,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CrunchyData/pg_featureserv/internal/api"
-	"github.com/CrunchyData/pg_featureserv/internal/conf"
-	"github.com/CrunchyData/pg_featureserv/internal/data"
+	"github.com/tobilg/duckdb_featureserv/internal/api"
+	"github.com/tobilg/duckdb_featureserv/internal/conf"
+	"github.com/tobilg/duckdb_featureserv/internal/data"
 )
 
 // Define a FeatureCollection structure for parsing test data

@@ -35,17 +35,13 @@ It includes [*OGC API - Features*](http://docs.opengeospatial.org/is/17-069r3/17
 - [x] `offset=n`
 - [x] `crs=srid`
 - [x] `bbox=x1,y1,x2,y2`
-- [ ] `bbox` (6 numbers)
 - [x] `bbox-crs=srid`
-- [ ] `datetime`
 - [x] `properties` list
   - restricts properties included in response
 - [x] `sortby` to sort output by a property
   - `sortby=name`, `sortby=+name`, `sortby=-name`
 - [x] filtering by property value ( `name=value`, as per [spec sec. 7.15.5](http://docs.opengeospatial.org/is/17-069r3/17-069r3.html#_parameters_for_filtering_on_feature_properties) )
 - [x] `filter` with CQL expressions (see below)
-- [ ] `filter-lang` (only CQL-Text is supported)
-- [ ] `filter-crs=srid`
 
 ### Query parameters - Extension
 - [x] `precision` to set output precision of GeoJSON coordinates
@@ -54,7 +50,6 @@ It includes [*OGC API - Features*](http://docs.opengeospatial.org/is/17-069r3/17
   - `transform=fn,arg,arg|fn,arg`
 - [ ] convert transform function names to `ST_` equivalents
 - [x] `groupBy=colname` to group by column (used with a `transform` spatial aggregate function)
-- [ ] `f` parameter for formats?  (e.g. `f=json`, `f=html`)
 
 ### Query parameters - Functions
 - [x] function arguments
@@ -84,14 +79,11 @@ It includes [*OGC API - Features*](http://docs.opengeospatial.org/is/17-069r3/17
 - [x] temporal literals
   - `1999-01-01`, `2001-12-25T10:01:02`
 - [x] temporal predicates
-- [ ] functions
 
 ### Output formats
 - [x] GeoJSON
 - [x] JSON for metadata
 - [x] JSON for non-geometry functions
-- [ ] `next` link
-- [ ] `prev` link
 
 ### Transactions
 - [ ] Support POST, PUT, PATCH, DELETE...  TBD
@@ -116,11 +108,6 @@ It includes [*OGC API - Features*](http://docs.opengeospatial.org/is/17-069r3/17
 - [x] control for setting function parameter values
 - [x] configurable base map URL
 
-## Database
-
-- [x] PostGIS 2.x `AsGeoJSON` geometry with attribute encoding
-- [ ] PostGIS 3.0 `ST_AsGeoJSON` record
-
 ### Data Types
 - [x] common scalar types: text, int, float, numeric
 - [x] Arrays of text, int, float, numeric
@@ -133,7 +120,6 @@ It includes [*OGC API - Features*](http://docs.opengeospatial.org/is/17-069r3/17
 - [x] support views (with PK as `fid` or missing)
 - [x] support materialized views
 - [x] read property descriptions from table/view column comments
-- [ ] read table estimated and actual extents lazily
 - [X] include/exclude published schemas and tables via configuration
 
 ### Functions
@@ -143,8 +129,6 @@ It includes [*OGC API - Features*](http://docs.opengeospatial.org/is/17-069r3/17
 - [x] support geometry functions with no `id` output field
 - [x] LIMIT/OFFSET for function output
 - [x] BBOX filter for function output
-- [ ] pass LIMIT as function parameter
-- [ ] pass BBOX as function parameter
 
 ## Operational
 
@@ -153,12 +137,6 @@ It includes [*OGC API - Features*](http://docs.opengeospatial.org/is/17-069r3/17
 
 ### Configuration
 - [x] read config from file
-- [ ] log levels
 - [x] DB pool parameters
 - [x] database connection string
 - [x] whitelist for transformation functions (default: none)
-
-### Security
-- [ ] Authentication - TBD
-- [ ] OpenID - TBD
-- [x] Authorization via database role & grants

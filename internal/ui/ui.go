@@ -17,8 +17,8 @@ import (
 	"bytes"
 	"html/template"
 
-	"github.com/CrunchyData/pg_featureserv/internal/conf"
-	"github.com/CrunchyData/pg_featureserv/internal/data"
+	"github.com/tobilg/duckdb_featureserv/internal/conf"
+	"github.com/tobilg/duckdb_featureserv/internal/data"
 	log "github.com/sirupsen/logrus"
 )
 

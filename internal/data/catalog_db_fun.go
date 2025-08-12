@@ -15,13 +15,11 @@ package data
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
-	"github.com/CrunchyData/pg_featureserv/internal/conf"
-	"github.com/jackc/pgtype"
-	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pgxpool"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -53,13 +51,13 @@ func (cat *catalogDB) refreshFunctions(force bool) {
 }
 
 func (cat *catalogDB) loadFunctions() {
-	cat.functions, cat.functionMap = readFunctionDefs(cat.dbconn, conf.Configuration.Database.FunctionIncludes)
+	cat.functions, cat.functionMap = readFunctionDefs(cat.dbconn)
 }
 
-func readFunctionDefs(db *pgxpool.Pool, funSchemas []string) ([]*Function, map[string]*Function) {
-	sql := sqlFunctions(funSchemas)
+func readFunctionDefs(db *sql.DB) ([]*Function, map[string]*Function) {
+	sql := sqlFunctions()
 	log.Debugf("Load function catalog:\n%v", sql)
-	rows, err := db.Query(context.Background(), sql)
+	rows, err := db.Query(sql)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -81,26 +79,27 @@ func readFunctionDefs(db *pgxpool.Pool, funSchemas []string) ([]*Function, map[s
 	return functions, functionMap
 }
 
-func scanFunctionDef(rows pgx.Rows) *Function {
+func scanFunctionDef(rows *sql.Rows) *Function {
 	var (
-		id, schema, name, description                              string
-		inNamesTA, inTypesTA, inDefaultsTA, outNamesTA, outTypesTA pgtype.TextArray
+		id, schema, name, description                                   string
+		inNamesStr, inTypesStr, inDefaultsStr, outNamesStr, outTypesStr string
 	)
 
 	err := rows.Scan(&id, &schema, &name, &description,
-		&inNamesTA, &inTypesTA, &inDefaultsTA, &outNamesTA, &outTypesTA)
+		&inNamesStr, &inTypesStr, &inDefaultsStr, &outNamesStr, &outTypesStr)
 	if err != nil {
 		log.Fatalf("Error reading function catalog: %v", err)
 	}
 
-	inNames := toArray(inNamesTA)
-	inTypes := toArray(inTypesTA)
-	inDefaultsDB := toArray(inDefaultsTA)
+	// Parse JSON arrays from strings
+	inNames := parseJSONStringArray(inNamesStr)
+	inTypes := parseJSONStringArray(inTypesStr)
+	inDefaultsDB := parseJSONStringArray(inDefaultsStr)
 	numNoDefault := len(inNames) - len(inDefaultsDB)
 	inDefaults := extendLeft(inDefaultsDB, len(inNames))
-	outNames := toArray(outNamesTA)
-	outTypes := toArray(outTypesTA)
-	outJSONTypes := toJSONTypeFromPGArray(outTypes)
+	outNames := parseJSONStringArray(outNamesStr)
+	outTypes := parseJSONStringArray(outTypesStr)
+	outJSONTypes := toJSONTypeFromDuckDBArray(outTypes)
 
 	inTypeMap := make(map[string]string)
 	addTypes(inTypeMap, inNames, inTypes)
@@ -135,6 +134,21 @@ func scanFunctionDef(rows pgx.Rows) *Function {
 	//fmt.Printf("DEBUG: Function definitions: %v\n", funDef)
 	return &funDef
 }
+
+// parseJSONStringArray parses a JSON string array like '["a","b","c"]' into []string
+func parseJSONStringArray(jsonStr string) []string {
+	if jsonStr == "" || jsonStr == "[]" {
+		return []string{}
+	}
+	var result []string
+	err := json.Unmarshal([]byte(jsonStr), &result)
+	if err != nil {
+		log.Warnf("Error parsing JSON array '%s': %v", jsonStr, err)
+		return []string{}
+	}
+	return result
+}
+
 func addTypes(typeMap map[string]string, names []string, types []string) {
 	for i, name := range names {
 		typeMap[name] = types[i]
@@ -143,28 +157,14 @@ func addTypes(typeMap map[string]string, names []string, types []string) {
 func geometryColumn(names []string, types map[string]string) string {
 	// TODO: extract from outNames, outTypes
 	for _, name := range names {
-		if types[name] == PGTypeGeometry {
+		if types[name] == DuckDBTypeGeometry {
 			return name
 		}
 	}
 	return ""
 }
-func toArray(ta pgtype.TextArray) []string {
-	arrLen := 0
-	arrStart := 0
-	if len(ta.Dimensions) > 0 {
-		arrLen = int(ta.Dimensions[0].Length)
-		arrStart = int(ta.Dimensions[0].LowerBound - 1)
-	}
 
-	arr := make([]string, arrLen)
-
-	for i := arrStart; i < arrLen; i++ {
-		val := ta.Elements[i].String
-		arr[i] = val
-	}
-	return arr
-}
+// toArray is no longer needed - replaced by parseJSONStringArray
 
 // extendLeft extends an array to have given size, with original contents right-aligned
 func extendLeft(arr []string, size int) []string {
@@ -238,9 +238,9 @@ func removeNames(names []string, ex1 string, ex2 string) []string {
 	return newNames
 }
 
-func readDataWithArgs(ctx context.Context, db *pgxpool.Pool, propCols []string, sql string, args []interface{}) ([]map[string]interface{}, error) {
+func readDataWithArgs(ctx context.Context, db *sql.DB, propCols []string, sql string, args []interface{}) ([]map[string]interface{}, error) {
 	start := time.Now()
-	rows, err := db.Query(context.Background(), sql, args...)
+	rows, err := db.QueryContext(ctx, sql, args...)
 	if err != nil {
 		log.Warnf("Error running Data query: %v", err)
 		return nil, err
@@ -251,11 +251,11 @@ func readDataWithArgs(ctx context.Context, db *pgxpool.Pool, propCols []string, 
 	return data, nil
 }
 
-func scanData(ctx context.Context, rows pgx.Rows, propCols []string) []map[string]interface{} {
+func scanData(ctx context.Context, rows *sql.Rows, propCols []string) []map[string]interface{} {
 	// init data array to empty (not nil)
 	var data []map[string]interface{} = []map[string]interface{}{}
 	for rows.Next() {
-		obj := scanDataRow(rows, true, propCols)
+		obj := scanDataRow(rows, propCols)
 		//log.Println(feature)
 		data = append(data, obj)
 	}
@@ -273,15 +273,28 @@ func scanData(ctx context.Context, rows pgx.Rows, propCols []string) []map[strin
 	return data
 }
 
-func scanDataRow(rows pgx.Rows, hasID bool, propNames []string) map[string]interface{} {
-	vals, err := rows.Values()
+func scanDataRow(rows *sql.Rows, propNames []string) map[string]interface{} {
+	// Get column names to dynamically scan
+	columns, err := rows.Columns()
+	if err != nil {
+		log.Warnf("Error getting columns: %v", err)
+		return nil
+	}
+
+	// Create a slice to hold values
+	values := make([]interface{}, len(columns))
+	valuePtrs := make([]interface{}, len(columns))
+	for i := range values {
+		valuePtrs[i] = &values[i]
+	}
+
+	err = rows.Scan(valuePtrs...)
 	if err != nil {
 		log.Warnf("Error getting Data row values: %v", err)
 		return nil
 	}
-	//fmt.Println(vals)
 
 	//fmt.Println(geom)
-	props := extractProperties(vals, 0, propNames)
+	props := extractProperties(values, 0, propNames)
 	return props
 }

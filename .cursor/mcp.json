@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "go-duckdb Docs": {
+      "url": "https://gitmcp.io/marcboeker/go-duckdb"
+    },
+    "duckdb-spatial Docs": {
+      "url": "https://gitmcp.io/duckdb/duckdb-spatial"
+    },
+    "pg_featureserv Docs": {
+      "url": "https://gitmcp.io/CrunchyData/pg_featureserv"
+    }
+  }
+}

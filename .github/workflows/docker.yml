@@ -1,17 +1,17 @@
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   docker:
     name: Docker
     runs-on: ubuntu-latest
-    if: github.repository == 'CrunchyData/pg_featureserv'
+    if: github.repository == 'tobilg/duckdb_featureserv'
     steps:
 
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v5
 
     - name: Build ARM64
       run: make TARGETARCH=arm64 multi-stage-docker
@@ -19,11 +19,12 @@ jobs:
     - name: Build x86_64
       run: make TARGETARCH=amd64 multi-stage-docker
 
+    # See: 
     - name: Docker Upload
       env:
         DOCKER_USER: ${{ secrets.DOCKER_USER }}
         DOCKER_PASS: ${{ secrets.DOCKER_PASS }}
-        DOCKER_REPO: pramsey/pg_featureserv
+        DOCKER_REPO: tobilg/duckdb-featureserv
       run: |
         echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
         docker push --all-tags $DOCKER_REPO
