@@ -9,7 +9,8 @@ FROM docker.io/library/golang:${GOLANG_VERSION}-alpine AS builder
 LABEL stage=featureservbuilder
 
 # Install build dependencies for CGO and C++
-RUN apk add --no-cache gcc g++ musl-dev libstdc++-dev
+# Add additional libraries needed for DuckDB static linking
+RUN apk add --no-cache gcc g++ musl-dev libstdc++-dev libexecinfo-dev libc6-compat
 
 ARG TARGETARCH
 ARG VERSION
@@ -18,6 +19,8 @@ WORKDIR /app
 COPY . ./
 
 # Native build on target platform
+# Set CGO flags to help with linking
+ENV CGO_LDFLAGS="-lexecinfo"
 RUN go build -v -ldflags "-s -w -X github.com/tobilg/duckdb_featureserv/internal/conf.setVersion=${VERSION}"
 
 FROM --platform=${TARGETARCH} ${BASE_REGISTRY}/${BASE_IMAGE} AS multi-stage
