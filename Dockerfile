@@ -8,8 +8,8 @@ ARG PLATFORM=amd64
 FROM --platform=$TARGETPLATFORM docker.io/library/golang:${GOLANG_VERSION}-alpine AS builder
 LABEL stage=featureservbuilder
 
-# Install build dependencies for CGO  
-RUN apk add --no-cache gcc musl-dev
+# Install build dependencies for CGO and C++
+RUN apk add --no-cache gcc g++ musl-dev libstdc++-dev
 
 ARG TARGETARCH
 ARG VERSION
