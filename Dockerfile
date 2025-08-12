@@ -5,7 +5,7 @@ ARG BASE_REGISTRY=registry.access.redhat.com
 ARG BASE_IMAGE=ubi8-micro
 ARG PLATFORM=amd64
 
-FROM --platform=$TARGETPLATFORM docker.io/library/golang:${GOLANG_VERSION}-alpine AS builder
+FROM docker.io/library/golang:${GOLANG_VERSION}-alpine AS builder
 LABEL stage=featureservbuilder
 
 # Install build dependencies for CGO and C++
