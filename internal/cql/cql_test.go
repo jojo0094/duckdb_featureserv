@@ -64,16 +64,16 @@ func TestNullPredicate(t *testing.T) {
 }
 
 func TestSpatialPredicate(t *testing.T) {
-	checkCQL(t, "crosses(geom, POINT(0 0))", "ST_Crosses(\"geom\",'SRID=4326;POINT(0 0)'::geometry)")
-	checkCQL(t, "Contains(geom, POINT(0 0))", "ST_Contains(\"geom\",'SRID=4326;POINT(0 0)'::geometry)")
-	checkCQL(t, "DISJOINT(geom, POINT(0 0))", "ST_Disjoint(\"geom\",'SRID=4326;POINT(0 0)'::geometry)")
-	checkCQL(t, "EQUALS(geom, POINT(0 0))", "ST_Equals(\"geom\",'SRID=4326;POINT(0 0)'::geometry)")
-	checkCQL(t, "INTERSECTS(geom, POINT(0 0))", "ST_Intersects(\"geom\",'SRID=4326;POINT(0 0)'::geometry)")
-	checkCQL(t, "OVERLAPS(geom, POINT(0 0))", "ST_Overlaps(\"geom\",'SRID=4326;POINT(0 0)'::geometry)")
-	checkCQL(t, "TOUCHES(geom, POINT(0 0))", "ST_Touches(\"geom\",'SRID=4326;POINT(0 0)'::geometry)")
-	checkCQL(t, "within(geom, POINT(0 0))", "ST_Within(\"geom\",'SRID=4326;POINT(0 0)'::geometry)")
+	checkCQL(t, "crosses(geom, POINT(0 0))", "ST_Crosses(\"geom\",ST_GeomFromText('POINT(0 0)'))")
+	checkCQL(t, "Contains(geom, POINT(0 0))", "ST_Contains(\"geom\",ST_GeomFromText('POINT(0 0)'))")
+	checkCQL(t, "DISJOINT(geom, POINT(0 0))", "ST_Disjoint(\"geom\",ST_GeomFromText('POINT(0 0)'))")
+	checkCQL(t, "EQUALS(geom, POINT(0 0))", "ST_Equals(\"geom\",ST_GeomFromText('POINT(0 0)'))")
+	checkCQL(t, "INTERSECTS(geom, POINT(0 0))", "ST_Intersects(\"geom\",ST_GeomFromText('POINT(0 0)'))")
+	checkCQL(t, "OVERLAPS(geom, POINT(0 0))", "ST_Overlaps(\"geom\",ST_GeomFromText('POINT(0 0)'))")
+	checkCQL(t, "TOUCHES(geom, POINT(0 0))", "ST_Touches(\"geom\",ST_GeomFromText('POINT(0 0)'))")
+	checkCQL(t, "within(geom, POINT(0 0))", "ST_Within(\"geom\",ST_GeomFromText('POINT(0 0)'))")
 
-	checkCQL(t, "Dwithin(geom, POINT(0 0), 100)", "ST_DWithin(\"geom\",'SRID=4326;POINT(0 0)'::geometry,100)")
+	checkCQL(t, "Dwithin(geom, POINT(0 0), 100)", "ST_DWithin(\"geom\",ST_GeomFromText('POINT(0 0)'),100)")
 }
 
 func TestArithmetic(t *testing.T) {
@@ -102,30 +102,30 @@ func TestLiteral(t *testing.T) {
 
 func TestGeometryLiteral(t *testing.T) {
 	checkCQL(t, "equals(geom, POINT(0 0))",
-		"ST_Equals(\"geom\",'SRID=4326;POINT(0 0)'::geometry)")
+		"ST_Equals(\"geom\",ST_GeomFromText('POINT(0 0)'))")
 	checkCQL(t, "equals(geom, LINESTRING(0 0, 1 1))",
-		"ST_Equals(\"geom\",'SRID=4326;LINESTRING(0 0,1 1)'::geometry)")
+		"ST_Equals(\"geom\",ST_GeomFromText('LINESTRING(0 0,1 1)'))")
 	checkCQL(t, "equals(geom, POLYGON((0 0, 0 9, 9 0, 0 0)))",
-		"ST_Equals(\"geom\",'SRID=4326;POLYGON((0 0,0 9,9 0,0 0))'::geometry)")
+		"ST_Equals(\"geom\",ST_GeomFromText('POLYGON((0 0,0 9,9 0,0 0))'))")
 	checkCQL(t, "equals(geom, POLYGON((0 0, 0 9, 9 0, 0 0),(1 1, 1 8, 8 1, 1 1)))",
-		"ST_Equals(\"geom\",'SRID=4326;POLYGON((0 0,0 9,9 0,0 0),(1 1,1 8,8 1,1 1))'::geometry)")
+		"ST_Equals(\"geom\",ST_GeomFromText('POLYGON((0 0,0 9,9 0,0 0),(1 1,1 8,8 1,1 1))'))")
 	checkCQL(t, "equals(geom, MULTIPOINT((0 0), (0 9)))",
-		"ST_Equals(\"geom\",'SRID=4326;MULTIPOINT((0 0),(0 9))'::geometry)")
+		"ST_Equals(\"geom\",ST_GeomFromText('MULTIPOINT((0 0),(0 9))'))")
 	checkCQL(t, "equals(geom, MULTILINESTRING((0 0, 1 1),(1 1, 2 2)))",
-		"ST_Equals(\"geom\",'SRID=4326;MULTILINESTRING((0 0,1 1),(1 1,2 2))'::geometry)")
+		"ST_Equals(\"geom\",ST_GeomFromText('MULTILINESTRING((0 0,1 1),(1 1,2 2))'))")
 	checkCQL(t, "equals(geom, MULTIPOLYGON(((1 4, 4 1, 1 1, 1 4)), ((1 9, 4 9, 1 6, 1 9))))",
-		"ST_Equals(\"geom\",'SRID=4326;MULTIPOLYGON(((1 4,4 1,1 1,1 4)),((1 9,4 9,1 6,1 9)))'::geometry)")
+		"ST_Equals(\"geom\",ST_GeomFromText('MULTIPOLYGON(((1 4,4 1,1 1,1 4)),((1 9,4 9,1 6,1 9)))'))")
 	checkCQL(t, "equals(geom, GEOMETRYCOLLECTION(POLYGON((1 4, 4 1, 1 1, 1 4)),LINESTRING (3 3, 5 5), POINT (1 5)))",
-		"ST_Equals(\"geom\",'SRID=4326;GEOMETRYCOLLECTION(POLYGON((1 4,4 1,1 1,1 4)),LINESTRING(3 3,5 5),POINT(1 5))'::geometry)")
+		"ST_Equals(\"geom\",ST_GeomFromText('GEOMETRYCOLLECTION(POLYGON((1 4,4 1,1 1,1 4)),LINESTRING(3 3,5 5),POINT(1 5))'))")
 	checkCQL(t, "equals(geom, ENVELOPE(1,2,3,4))",
-		"ST_Equals(\"geom\",ST_MakeEnvelope(1,2,3,4,4326))")
+		"ST_Equals(\"geom\",ST_MakeEnvelope(1::DOUBLE,2::DOUBLE,3::DOUBLE,4::DOUBLE))")
 }
 
 func TestGeometryLiteralWithSRID(t *testing.T) {
 	checkCQLWithSRID(t, "equals(geom, POINT(0 0))", 1111, 2222,
-		"ST_Equals(\"geom\",ST_Transform('SRID=1111;POINT(0 0)'::geometry,2222))")
+		"ST_Equals(\"geom\",ST_Transform(ST_GeomFromText('POINT(0 0)'),2222))")
 	checkCQLWithSRID(t, "equals(geom, ENVELOPE(1,2,3,4))", 1111, 2222,
-		"ST_Equals(\"geom\",ST_Transform(ST_MakeEnvelope(1,2,3,4,1111),2222))")
+		"ST_Equals(\"geom\",ST_Transform(ST_MakeEnvelope(1::DOUBLE,2::DOUBLE,3::DOUBLE,4::DOUBLE),2222))")
 }
 
 func TestBooleanExpression(t *testing.T) {

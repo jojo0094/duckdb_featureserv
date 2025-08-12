@@ -428,7 +428,7 @@ func TestHTMLFunctions(t *testing.T) {
 	rr := doRequest(t, "/functions.html")
 	for _, fun := range catalogMock.FunctionDefs {
 		if !strings.Contains(rr.Body.String(), "http://test/functions/"+fun.Name+".json") {
-			t.Errorf("Functions response should contain reference to " + fun.Name + ".json")
+			t.Errorf("Functions response should contain reference to %s.json", fun.Name)
 		}
 	}
 }

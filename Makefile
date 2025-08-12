@@ -14,9 +14,9 @@ GOVERSION ?= 1.24.6
 PROGRAM ?= duckdb_featureserv
 CONTAINER ?= tobilg/$(PROGRAM)
 DATE ?= $(shell date +%Y%m%d)
-BASE_REGISTRY ?= registry.hub.docker.com
+BASE_REGISTRY ?= registry.access.redhat.com
 BASE_IMAGE ?= ubi8-micro
-SYSTEMARCH = $(shell uname -i)
+SYSTEMARCH = $(shell uname -m)
 
 ifeq ($(SYSTEMARCH), x86_64)
 TARGETARCH ?= amd64
