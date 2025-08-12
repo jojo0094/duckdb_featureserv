@@ -11,9 +11,6 @@ LABEL stage=featureservbuilder
 # Install build dependencies for CGO
 RUN apk add --no-cache gcc musl-dev
 
-ARG TARGETARCH
-ARG VERSION
-
 WORKDIR /app
 COPY . ./
 
