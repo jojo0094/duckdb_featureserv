@@ -15,17 +15,21 @@ package main
 
 /*
 # Running
-Usage: ./duckdb_featureserv [ -test ] [ --duckdb /path/to/database.db ] [ --table tablename ]
+Usage: ./duckdb_featureserv [ -test ] [ --database-path /path/to/database.db ]
 
 Browser: e.g. http://localhost:9000/index.html
 
 # Configuration
-DuckDB file path in env var `DUCKDB_PATH`
-Example: `export DUCKDB_PATH="/path/to/database.db"`
+DuckDB file path in env var `DUCKDBFS_DATABASE_PATH`
+Example: `export DUCKDBFS_DATABASE_PATH="/path/to/database.db"`
 
-Table name in env var `DUCKDB_TABLE` (optional)
-Example: `export DUCKDB_TABLE="my_spatial_table"`
+Table filtering via env vars `DUCKDBFS_DATABASE_TABLEINCLUDES` and `DUCKDBFS_DATABASE_TABLEEXCLUDES` (optional)
+Examples:
+  `export DUCKDBFS_DATABASE_TABLEINCLUDES="public,reports.monthly"`
+  `export DUCKDBFS_DATABASE_TABLEEXCLUDES="private,system"`
 If not specified, all tables with geometry columns will be served as collections
+
+For backward compatibility, the old environment variable `DUCKDB_PATH` is still supported but deprecated.
 
 # Logging
 Logging to stdout
@@ -51,7 +55,8 @@ var flagHelp bool
 var flagVersion bool
 var flagConfigFilename string
 var flagDuckDBPath string
-var flagTableName string
+
+var flagDisableUi bool
 
 func init() {
 	initCommnandOptions()
@@ -64,8 +69,9 @@ func initCommnandOptions() {
 	getopt.FlagLong(&flagDevModeOn, "devel", 0, "Run in development mode")
 	getopt.FlagLong(&flagTestModeOn, "test", 't', "Serve mock data for testing")
 	getopt.FlagLong(&flagVersion, "version", 'v', "Output the version information")
-	getopt.FlagLong(&flagDuckDBPath, "duckdb", 0, "", "Path to DuckDB database file")
-	getopt.FlagLong(&flagTableName, "table", 0, "", "Name of spatial table to serve (if not specified, all tables with geometry columns will be served)")
+	getopt.FlagLong(&flagDuckDBPath, "database-path", 0, "", "Path to DuckDB database file")
+
+	getopt.FlagLong(&flagDisableUi, "disable-ui", 0, "Disable HTML UI routes")
 }
 
 func main() {
@@ -87,10 +93,12 @@ func main() {
 
 	// Set DuckDB parameters from command line if provided
 	if flagDuckDBPath != "" {
-		conf.Configuration.Database.DbConnection = flagDuckDBPath
+		conf.Configuration.Database.DatabasePath = flagDuckDBPath
 	}
-	if flagTableName != "" {
-		conf.Configuration.Database.TableName = flagTableName
+
+	// Set UI disable flag from command line
+	if flagDisableUi {
+		conf.Configuration.Server.DisableUi = true
 	}
 
 	if flagTestModeOn || flagDevModeOn {

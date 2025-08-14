@@ -72,6 +72,7 @@ func setup(path string) {
 			UrlBase:    urlBase,
 			BasePath:   path,
 			AssetsPath: "../../assets",
+			DisableUi:  false,
 			TransformFunctions: []string{
 				"ST_Centroid",
 				"ST_PointOnSurface",
@@ -553,5 +554,96 @@ func equals(tb testing.TB, exp, act interface{}, msg string) {
 		_, file, line, _ := runtime.Caller(1)
 		fmt.Printf("%s:%d: %s - expected: %#v; got: %#v\n", filepath.Base(file), line, msg, exp, act)
 		tb.FailNow()
+	}
+}
+
+// Test UI disabled functionality
+func TestUIDisabled(t *testing.T) {
+	// Save original config
+	origConfig := conf.Configuration
+	defer func() {
+		conf.Configuration = origConfig
+		setup(basePath)
+		Initialize()
+	}()
+
+	// Configure with UI disabled - create a new config to avoid shared state issues
+	testConfig := origConfig
+	testConfig.Server.DisableUi = true
+	conf.Configuration = testConfig
+
+	// Re-setup router with new config
+	router = initRouter(basePath)
+	Initialize()
+
+	testCases := []string{
+		"/index.html",
+		"/conformance.html",
+		"/collections.html",
+		"/collections/mock_a.html",
+		"/collections/mock_a/items.html",
+		"/collections/mock_a/items/1.html",
+		"/functions.html",
+		"/functions/fun_a.html",
+		"/api.html",
+	}
+
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("HTML route %s should return 404 when UI disabled", tc), func(t *testing.T) {
+			doRequestStatus(t, tc, http.StatusNotFound)
+		})
+	}
+}
+
+func TestUIDisabledReturnsEmptyBody(t *testing.T) {
+	// Save original config
+	origConfig := conf.Configuration
+	defer func() {
+		conf.Configuration = origConfig
+		setup(basePath)
+		Initialize()
+	}()
+
+	// Configure with UI disabled
+	testConfig := origConfig
+	testConfig.Server.DisableUi = true
+	conf.Configuration = testConfig
+
+	// Re-setup router with new config
+	router = initRouter(basePath)
+	Initialize()
+
+	// Test a specific route to verify empty response body
+	req, err := http.NewRequest("GET", basePath+"/index.html", nil)
+	assert(t, err == nil, "Request creation should not fail")
+
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	// Check that status is 404 and body is empty
+	assert(t, rr.Code == http.StatusNotFound, "Status should be 404")
+	body := rr.Body.String()
+	assert(t, body == "", fmt.Sprintf("Response body should be empty, got: %q", body))
+}
+
+func TestUIEnabledByDefault(t *testing.T) {
+	// Ensure UI is enabled by default in test setup
+	assert(t, !conf.Configuration.Server.DisableUi, "UI should be enabled by default")
+
+	testCases := []string{
+		"/index.html",
+		"/conformance.html",
+		"/collections.html",
+		"/collections/mock_a.html",
+		"/collections/mock_a/items.html",
+		"/collections/mock_a/items/1.html",
+		"/functions.html",
+		"/functions/fun_a.html",
+	}
+
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("HTML route %s should work when UI enabled", tc), func(t *testing.T) {
+			doRequestStatus(t, tc, http.StatusOK)
+		})
 	}
 }

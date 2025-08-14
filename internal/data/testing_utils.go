@@ -1,4 +1,4 @@
-package conf
+package data
 
 /*
  Copyright 2019 - 2025 Crunchy Data Solutions, Inc.
@@ -13,19 +13,19 @@ package conf
  limitations under the License.
 */
 
-var setVersion string = "0.1.0"
+import (
+	"fmt"
+	"path/filepath"
+	"reflect"
+	"runtime"
+	"testing"
+)
 
-// AppConfiguration is the set of global application configuration constants.
-type AppConfiguration struct {
-	// AppName name of the software
-	Name string
-	// AppVersion version number of the software
-	Version   string
-	EnvPrefix string
-}
-
-var AppConfig = AppConfiguration{
-	Name:      "duckdb_featureserv",
-	Version:   setVersion,
-	EnvPrefix: "DUCKDBFS",
+// testEquals fails the test if exp is not equal to act.
+func testEquals(tb testing.TB, exp, act interface{}, msg string) {
+	if !reflect.DeepEqual(exp, act) {
+		_, file, line, _ := runtime.Caller(1)
+		fmt.Printf("%s:%d: %s - expected: %#v; got: %#v\n", filepath.Base(file), line, msg, exp, act)
+		tb.FailNow()
+	}
 }

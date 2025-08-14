@@ -80,7 +80,7 @@ func newCatalogDB() catalogDB {
 }
 
 func dbConnect() *sql.DB {
-	dbPath := conf.Configuration.Database.DbConnection
+	dbPath := conf.Configuration.Database.DatabasePath
 
 	// disallow blank config for safety
 	if dbPath == "" {
@@ -241,20 +241,9 @@ func tablesSorted(tableMap map[string]*Table) []*Table {
 }
 
 func (cat *catalogDB) readTables(db *sql.DB) map[string]*Table {
-	tableName := conf.Configuration.Database.TableName
-
-	var rows *sql.Rows
-	var err error
-
-	if tableName == "" {
-		// No specific table specified, discover all tables with geometry columns
-		log.Info("No table name specified, discovering all tables with geometry columns")
-		rows, err = db.Query(sqlTables)
-	} else {
-		// Specific table requested
-		log.Debugf("Load table catalog for table: %v", tableName)
-		rows, err = db.Query(sqlTablesSpecific, tableName)
-	}
+	// Discover all tables with geometry columns
+	log.Info("Discovering all tables with geometry columns")
+	rows, err := db.Query(sqlTables)
 
 	if err != nil {
 		log.Fatal(err)
@@ -275,11 +264,7 @@ func (cat *catalogDB) readTables(db *sql.DB) map[string]*Table {
 	}
 
 	if len(tables) == 0 {
-		if tableName == "" {
-			log.Warn("No tables with geometry columns found in database")
-		} else {
-			log.Warnf("Table '%s' not found or does not contain geometry columns", tableName)
-		}
+		log.Warn("No tables with geometry columns found in database")
 	}
 
 	return tables

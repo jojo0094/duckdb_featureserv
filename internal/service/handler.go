@@ -20,11 +20,11 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/gorilla/mux"
 	"github.com/tobilg/duckdb_featureserv/internal/api"
 	"github.com/tobilg/duckdb_featureserv/internal/conf"
 	"github.com/tobilg/duckdb_featureserv/internal/data"
 	"github.com/tobilg/duckdb_featureserv/internal/ui"
-	"github.com/gorilla/mux"
 )
 
 const (
@@ -89,6 +89,12 @@ func handleRoot(w http.ResponseWriter, r *http.Request) *appError {
 
 func doRoot(w http.ResponseWriter, r *http.Request, format string) *appError {
 	//log.Printf("Content-Type: %v  Accept: %v", r.Header.Get("Content-Type"), r.Header.Get("Accept"))
+
+	// Check if HTML UI is disabled
+	if err := checkUIDisabled(format); err != nil {
+		return err
+	}
+
 	urlBase := serveURLBase(r)
 
 	// --- create content
@@ -146,6 +152,12 @@ func linkAlt(urlBase string, path string, desc string) *api.Link {
 
 func handleCollections(w http.ResponseWriter, r *http.Request) *appError {
 	format := api.RequestedFormat(r)
+
+	// Check if HTML UI is disabled
+	if err := checkUIDisabled(format); err != nil {
+		return err
+	}
+
 	urlBase := serveURLBase(r)
 
 	colls, err := catalogInstance.Tables()
@@ -219,6 +231,12 @@ func linksCollection(name string, urlBase string, isSummary bool) []*api.Link {
 
 func handleCollection(w http.ResponseWriter, r *http.Request) *appError {
 	format := api.RequestedFormat(r)
+
+	// Check if HTML UI is disabled
+	if err := checkUIDisabled(format); err != nil {
+		return err
+	}
+
 	urlBase := serveURLBase(r)
 
 	name := getRequestVar(routeVarID, r)
@@ -257,6 +275,12 @@ func handleCollection(w http.ResponseWriter, r *http.Request) *appError {
 func handleCollectionItems(w http.ResponseWriter, r *http.Request) *appError {
 	// TODO: determine content from request header?
 	format := api.RequestedFormat(r)
+
+	// Check if HTML UI is disabled
+	if err := checkUIDisabled(format); err != nil {
+		return err
+	}
+
 	urlBase := serveURLBase(r)
 	query := api.URLQuery(r.URL)
 
@@ -339,6 +363,12 @@ func linksItems(name string, urlBase string) []*api.Link {
 func handleItem(w http.ResponseWriter, r *http.Request) *appError {
 	// TODO: determine content from request header?
 	format := api.RequestedFormat(r)
+
+	// Check if HTML UI is disabled
+	if err := checkUIDisabled(format); err != nil {
+		return err
+	}
+
 	urlBase := serveURLBase(r)
 
 	query := api.URLQuery(r.URL)
@@ -416,6 +446,12 @@ func writeItemJSON(ctx context.Context, w http.ResponseWriter, name string, fid 
 func handleConformance(w http.ResponseWriter, r *http.Request) *appError {
 	// TODO: determine content from request header?
 	format := api.RequestedFormat(r)
+
+	// Check if HTML UI is disabled
+	if err := checkUIDisabled(format); err != nil {
+		return err
+	}
+
 	urlBase := serveURLBase(r)
 
 	content := api.GetConformance()
@@ -435,6 +471,12 @@ func handleConformance(w http.ResponseWriter, r *http.Request) *appError {
 func handleAPI(w http.ResponseWriter, r *http.Request) *appError {
 	// TODO: determine content from request header?
 	format := api.RequestedFormat(r)
+
+	// Check if HTML UI is disabled
+	if err := checkUIDisabled(format); err != nil {
+		return err
+	}
+
 	urlBase := serveURLBase(r)
 
 	content := api.GetOpenAPIContent(urlBase)
@@ -453,6 +495,12 @@ func handleAPI(w http.ResponseWriter, r *http.Request) *appError {
 
 func handleFunctions(w http.ResponseWriter, r *http.Request) *appError {
 	format := api.RequestedFormat(r)
+
+	// Check if HTML UI is disabled
+	if err := checkUIDisabled(format); err != nil {
+		return err
+	}
+
 	urlBase := serveURLBase(r)
 
 	fns, err := catalogInstance.Functions()
@@ -539,6 +587,12 @@ func linksFunction(id string, urlBase string, isSummary bool, isGeomFun bool) []
 
 func handleFunction(w http.ResponseWriter, r *http.Request) *appError {
 	format := api.RequestedFormat(r)
+
+	// Check if HTML UI is disabled
+	if err := checkUIDisabled(format); err != nil {
+		return err
+	}
+
 	urlBase := serveURLBase(r)
 
 	shortName := getRequestVar(routeVarID, r)
@@ -579,6 +633,12 @@ func handleFunction(w http.ResponseWriter, r *http.Request) *appError {
 func handleFunctionItems(w http.ResponseWriter, r *http.Request) *appError {
 	// TODO: determine content from request header?
 	format := api.RequestedFormat(r)
+
+	// Check if HTML UI is disabled
+	if err := checkUIDisabled(format); err != nil {
+		return err
+	}
+
 	urlBase := serveURLBase(r)
 
 	//--- extract request parameters

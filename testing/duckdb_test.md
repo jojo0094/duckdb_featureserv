@@ -10,7 +10,7 @@ HTTP requests to test `duckdb_featureserv` capabilities using DuckDB with spatia
   ```
 * Run `duckdb_featureserv`:
   ```bash
-  ./duckdb_featureserv --duckdb test_spatial.duckdb
+  ./duckdb_featureserv --database-path test_spatial.duckdb
   ```
 * Test endpoints using curl or paste URLs into a browser
 
@@ -337,7 +337,7 @@ Verify all responses follow OGC API - Features specification:
 
 ### Enable Debug Mode
 ```bash
-./duckdb_featureserv --duckdb test_spatial.duckdb --debug
+./duckdb_featureserv --database-path test_spatial.duckdb --debug
 ```
 
 ### Check Server Logs

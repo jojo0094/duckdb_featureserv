@@ -38,6 +38,7 @@ func setDefaultConfig() {
 	viper.SetDefault("Server.AssetsPath", "./assets")
 	viper.SetDefault("Server.ReadTimeoutSec", 5)
 	viper.SetDefault("Server.WriteTimeoutSec", 30)
+	viper.SetDefault("Server.DisableUi", false)
 
 	viper.SetDefault("Database.TableIncludes", []string{})
 	viper.SetDefault("Database.TableExcludes", []string{})
@@ -75,6 +76,7 @@ type Server struct {
 	AssetsPath               string
 	ReadTimeoutSec           int
 	WriteTimeoutSec          int
+	DisableUi                bool
 	TransformFunctions       []string
 }
 
@@ -86,11 +88,10 @@ type Paging struct {
 
 // Database config
 type Database struct {
-	DbConnection     string
+	DatabasePath     string
 	TableIncludes    []string
 	TableExcludes    []string
 	FunctionIncludes []string
-	TableName        string
 }
 
 // Metadata config
@@ -154,20 +155,17 @@ func InitConfig(configFilename string, isDebug bool) {
 	// It takes precedence over config file (if any)
 	// A blank value is ignored
 	dbconnSrc := "config file"
-	if dbPath := os.Getenv(AppConfig.EnvDBURL); dbPath != "" {
-		Configuration.Database.DbConnection = dbPath
-		dbconnSrc = "environment variable " + AppConfig.EnvDBURL
-	}
-
-	// Read table name from environment variable
-	if tableName := os.Getenv("DUCKDB_TABLE"); tableName != "" {
-		Configuration.Database.TableName = tableName
+	if dbPath := os.Getenv("DUCKDBFS_DATABASE_PATH"); dbPath != "" {
+		Configuration.Database.DatabasePath = dbPath
+		dbconnSrc = "environment variable DUCKDBFS_DATABASE_PATH"
+	} else if dbPath := os.Getenv("DUCKDB_PATH"); dbPath != "" {
+		// Keep backward compatibility
+		log.Warn("DUCKDB_PATH environment variable is deprecated, use DUCKDBFS_DATABASE_PATH instead")
+		Configuration.Database.DatabasePath = dbPath
+		dbconnSrc = "environment variable DUCKDB_PATH (deprecated)"
 	}
 
 	log.Infof("Using database connection info from %v", dbconnSrc)
-	if Configuration.Database.TableName != "" {
-		log.Infof("Serving table: %v", Configuration.Database.TableName)
-	}
 
 	// sanitize the configuration
 	Configuration.Server.BasePath = strings.TrimRight(Configuration.Server.BasePath, "/")

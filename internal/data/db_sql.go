@@ -39,21 +39,6 @@ WHERE data_type = 'GEOMETRY'
 ORDER BY table_name
 `
 
-const sqlTablesSpecific = `
-SELECT 
-    table_name AS id,
-    'main' AS schema,
-    table_name AS table,
-    '' AS description,
-    column_name AS geometry_column,
-    4326 AS srid,
-    'GEOMETRY' AS geometry_type,
-    '' AS id_column,
-    '[]' AS props
-FROM information_schema.columns 
-WHERE table_name = ? AND data_type = 'GEOMETRY'
-ORDER BY table_name
-`
 const sqlFunctionsTemplate = `
 SELECT 
     'spatial.ST_Area' AS id,

@@ -39,6 +39,9 @@ ReadTimeoutSec = 5
 # Also controls maximum time for processing request
 WriteTimeoutSec = 30
 
+# Disable HTML UI routes (default is false)
+# DisableUi = false
+
 # Database functions allowed in the transform query parameter
 #TransformFunctions = [
 #    "ST_Boundary", "ST_Centroid", "ST_Envelope", "ST_PointOnSurface",
@@ -48,12 +51,8 @@ WriteTimeoutSec = 30
 
 [Database]
 # DuckDB database file path
-# DUCKDB_PATH environment variable takes precedence if set.
-# DbConnection = "/path/to/your/database.db"
-
-# Table name to serve spatial data from
-# DUCKDB_TABLE environment variable takes precedence if set.
-# TableName = "your_spatial_table"
+# DUCKDBFS_DATABASE_PATH environment variable takes precedence if set.
+# DatabasePath = "/path/to/your/database.db"
 
 # Publish only these schemas and tables (default is to publish all spatial tables)
 # TableIncludes = [ "public", "priv_schema.tbl" ]

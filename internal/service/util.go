@@ -23,12 +23,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tobilg/duckdb_featureserv/internal/api"
-	"github.com/tobilg/duckdb_featureserv/internal/conf"
-	"github.com/tobilg/duckdb_featureserv/internal/ui"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 	"github.com/theckman/httpforwarded"
+	"github.com/tobilg/duckdb_featureserv/internal/api"
+	"github.com/tobilg/duckdb_featureserv/internal/conf"
+	"github.com/tobilg/duckdb_featureserv/internal/ui"
 )
 
 const (
@@ -92,7 +92,12 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// should log attached error?
 		// panic on severe error?
 		log.Debugf("Request processing error: %v (%v)\n", e.Message, e.Code)
-		http.Error(w, e.Message, e.Code)
+		if e.Message == "" {
+			// Return just the status code without a response body
+			w.WriteHeader(e.Code)
+		} else {
+			http.Error(w, e.Message, e.Code)
+		}
 	}
 	close(handlerDone)
 }
@@ -133,6 +138,10 @@ func appErrorInternalFmt(err error, format string, v ...interface{}) *appError {
 
 func appErrorNotFoundFmt(err error, format string, v string) *appError {
 	msg := fmt.Sprintf(format, v)
+	return &appError{err, msg, http.StatusNotFound}
+}
+
+func appErrorNotFound(err error, msg string) *appError {
 	return &appError{err, msg, http.StatusNotFound}
 }
 
@@ -249,6 +258,7 @@ func restrict(inMap map[string]string, names []string) map[string]string {
 }
 
 // removeNames removes a list of names from a map (map is modified)
+//
 //nolint:unused
 func removeNames(inMap map[string]string, names []string) {
 	for _, name := range names {
@@ -282,6 +292,14 @@ func writeHTML(w http.ResponseWriter, content interface{}, context interface{}, 
 	return writeResponse(w, api.ContentTypeHTML, encodedContent)
 }
 
+// checkUIDisabled returns an error if HTML UI is disabled
+func checkUIDisabled(format string) *appError {
+	if format == api.FormatHTML && conf.Configuration.Server.DisableUi {
+		return appErrorNotFound(nil, "")
+	}
+	return nil
+}
+
 func writeResponse(w http.ResponseWriter, contype string, encodedContent []byte) *appError {
 	w.Header().Set("Content-Type", contype) //api.ContentType(format))
 	w.WriteHeader(http.StatusOK)
@@ -293,6 +311,7 @@ func writeResponse(w http.ResponseWriter, contype string, encodedContent []byte)
 }
 
 // Sets response 'status', and writes a json-encoded object with property "description" having value "msg".
+//
 //nolint:all
 func writeError(w http.ResponseWriter, code string, msg string, status int) {
 	w.WriteHeader(status)

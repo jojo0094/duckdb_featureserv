@@ -89,7 +89,7 @@ make APPVERSION=<VERSION> clean docker
 To run using an image built above, and mount a local, pre-made DuckDB database in the container:
 
 ```bash
-docker run --rm -dt -v "$PWD/database.duckdb:/data/database.duckdb" -e DUCKDB_PATH=/data/database.duckdb -p 9000:9000 tobilg/duckdb_featureserv:<VERSION>
+docker run --rm -dt -v "$PWD/database.duckdb:/data/database.duckdb" -e DUCKDBFS_DATABASE_PATH=/data/database.duckdb -p 9000:9000 tobilg/duckdb_featureserv:<VERSION>
 ```
 
 ## Configure the service
@@ -105,16 +105,22 @@ In this case configuration files in other locations are ignored.
 
 ### Configuration Using Environment Variables
 
-To set the database connection the environment variable `DUCKDB_PATH`
+To set the database connection the environment variable `DUCKDBFS_DATABASE_PATH`
 can be used to specify the path to a DuckDB database file:
 ```bash
-export DUCKDB_PATH="/path/to/database.db"
+export DUCKDBFS_DATABASE_PATH="/path/to/database.db"
 ```
 
-To specify which table to serve, use the `DUCKDB_TABLE` environment variable:
+To filter which tables to serve, use the `DUCKDBFS_DATABASE_TABLEINCLUDES` and `DUCKDBFS_DATABASE_TABLEEXCLUDES` environment variables:
 ```bash
-export DUCKDB_TABLE="my_spatial_table"
+# Include specific tables/schemas
+export DUCKDBFS_DATABASE_TABLEINCLUDES="public,reports.monthly"
+
+# Exclude sensitive tables/schemas  
+export DUCKDBFS_DATABASE_TABLEEXCLUDES="private,system,logs.debug"
 ```
+
+For backward compatibility, the old environment variable `DUCKDB_PATH` is still supported but deprecated.
 
 Other parameters in the configuration file can be over-ridden in the environment.
 Prepend the upper-cased parameter name with `DUCKDBFS_section_` to set the value.
@@ -141,10 +147,10 @@ TlsServerPrivateKeyFile = "/path/server.key"
 * Change to the application directory:
   * `cd duckdb_featureserv/`
 * Start the server with a DuckDB database:
-  * `./duckdb_featureserv --duckdb /path/to/your/database.db --table your_spatial_table`
+  * `./duckdb_featureserv --database-path /path/to/your/database.db`
 * Or set environment variables:
-  * `export DUCKDB_PATH="/path/to/your/database.db"`
-  * `export DUCKDB_TABLE="your_spatial_table"`
+  * `export DUCKDBFS_DATABASE_PATH="/path/to/your/database.db"`
+  * `export DUCKDBFS_DATABASE_TABLEINCLUDES="your_spatial_table"` (optional, to include specific tables)
   * `./duckdb_featureserv`
 * Open the service home page in a browser:
   * `http://localhost:9000/home.html`
@@ -155,10 +161,10 @@ TlsServerPrivateKeyFile = "/path/server.key"
 * `--config file.toml` - specify configuration file to use
 * `--debug` - set logging level to TRACE (can also be set in config file)
 * `--devel` - run in development mode (e.g. HTML templates reloaded every query)
+* `--disable-ui` - disable HTML UI routes (returns 404 for .html endpoints and Accept: text/html requests)
 * `--test` - run in test mode, with an internal catalog of tables and data
 * `--version` - display the version number
-* `--duckdb path` - specify path to DuckDB database file
-* `--table name` - specify name of spatial table to serve (optional; if not specified, all tables with geometry columns will be served)
+* `--database-path path` - specify path to DuckDB database file
 
 ## Testing
 
@@ -171,7 +177,7 @@ Run the comprehensive test suite:
 ./testing/test_duckdb_spatial.sh
 
 # Or run API endpoint tests (requires server to be running)
-./duckdb_featureserv --duckdb test_spatial.duckdb &
+./duckdb_featureserv --database-path test_spatial.duckdb &
 ./testing/test_api_endpoints.sh
 ```
 
@@ -182,7 +188,7 @@ Run the comprehensive test suite:
 duckdb test_spatial.duckdb < testing/duckdb_test.sql
 
 # Start server
-./duckdb_featureserv --duckdb test_spatial.duckdb
+./duckdb_featureserv --database-path test_spatial.duckdb
 
 # Test collections endpoint
 curl "http://localhost:9000/collections"

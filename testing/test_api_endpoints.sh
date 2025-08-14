@@ -61,7 +61,7 @@ run_test() {
 echo "📡 Checking if server is running..."
 if ! curl -s "$BASE_URL/collections" >/dev/null 2>&1; then
     echo "❌ Server not running at $BASE_URL"
-    echo "Please start the server with: ./duckdb_featureserv --duckdb $TEST_DB"
+    echo "Please start the server with: ./duckdb_featureserv --database-path $TEST_DB"
     exit 1
 fi
 echo "✅ Server is running"

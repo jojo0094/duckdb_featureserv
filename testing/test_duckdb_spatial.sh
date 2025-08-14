@@ -53,7 +53,7 @@ fi
 
 # Start server in background
 echo "Starting server with test database..."
-./duckdb_featureserv --duckdb test_spatial.duckdb --debug &
+./duckdb_featureserv --database-path test_spatial.duckdb --debug &
 SERVER_PID=$!
 
 # Wait for server to start
@@ -103,5 +103,5 @@ echo "📁 Test database created: test_spatial.duckdb"
 echo "📄 SQL test file: testing/duckdb_test.sql"
 echo ""
 echo "To manually test the server:"
-echo "  ./duckdb_featureserv --duckdb test_spatial.duckdb"
+echo "  ./duckdb_featureserv --database-path test_spatial.duckdb"
 echo "  curl http://localhost:9000/collections"
