@@ -47,6 +47,7 @@ Builds of the latest code:
 * [Linux](https://artifacts.serverless-duckdb.com/duckdb_featureserv_latest_linux.zip)
 * [Windows](https://artifacts.serverless-duckdb.com/duckdb_featureserv_latest_windows.zip)
 * [MacOS](https://artifacts.serverless-duckdb.com/duckdb_featureserv_latest_macos.zip)
+* [Docker image](https://hub.docker.com/repository/docker/tobilg/duckdb_featureserv/general)
 
 ## Build from Source
 
