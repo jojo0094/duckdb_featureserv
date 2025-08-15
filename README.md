@@ -187,7 +187,7 @@ docker run --rm -dt -v "$PWD/data:/data" -e DUCKDBFS_DATABASE_PATH=/data/databas
 curl -X POST --header "X-API-Key: supersecret" -d "SELECT 'hello', version()" "http://localhost:9001/?default_format=JSONCompact"
 ```
 
-#### Insert new data
+### Insert new data
 If we assume an example table with the following structure:
 
 ```text
