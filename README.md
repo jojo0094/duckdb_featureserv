@@ -143,6 +143,7 @@ These are set in the configuration file:
 ```
 TlsServerCertificateFile = "/path/server.crt"
 TlsServerPrivateKeyFile = "/path/server.key"
+```
 
 ## DuckDB HTTP API via the httpserver extension
 
@@ -211,6 +212,8 @@ You should see an output like the following if the query was successful:
 {"meta":[{"name":"Count","type":"BIGINT"}],"data":[[1]],"rows":1,"statistics":{"elapsed":0.010999999940395355,"rows_read":0,"bytes_read":0}}
 ```
 
+For detailed documentation, see [HTTPSERVER_EXTENSION.md](HTTPSERVER_EXTENSION.md).
+
 ### Security Considerations
 
 - **API Key**: Always use a strong API key in production environments
@@ -220,9 +223,6 @@ You should see an output like the following if the query was successful:
 When enabled, you'll see startup messages indicating the HTTP server status:
 ```
 INFO[0000] DuckDB HTTP server started on localhost:9001 with API key authentication
-```
-
-For detailed documentation, see [HTTPSERVER_EXTENSION.md](HTTPSERVER_EXTENSION.md).
 ```
 
 ## Run the service
