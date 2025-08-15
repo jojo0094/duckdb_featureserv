@@ -1,6 +1,8 @@
 # duckdb_featureserv
 
-A lightweight RESTful geospatial feature server for [DuckDB](https://duckdb.org/) with [duckdb-spatial](https://github.com/duckdb/duckdb-spatial) support, written in [Go](https://golang.org/). It supports the [*OGC API - Features*](https://ogcapi.ogc.org/features/) REST API standard.
+A lightweight RESTful geospatial feature server for [DuckDB](https://duckdb.org/) with [duckdb-spatial](https://github.com/duckdb/duckdb-spatial) support, written in [Go](https://golang.org/). It supports the [*OGC API - Features*](https://ogcapi.ogc.org/features/) REST API standard. 
+
+Optionally, it provides a [separate HTTP API](#duckdb-http-api-via-the-httpserver-extension) that allows direct access to the underlying DuckDB instance, that enables CRUD operations on the data.
 
 This is a refactored version of [`pg_featureserv`](https://github.com/CrunchyData/pg_featureserv) adapted to work with DuckDB's spatial extension instead of Postgres/PostGIS.
 
@@ -141,6 +143,86 @@ These are set in the configuration file:
 ```
 TlsServerCertificateFile = "/path/server.crt"
 TlsServerPrivateKeyFile = "/path/server.key"
+
+## DuckDB HTTP API via the httpserver extension
+
+`duckdb_featureserv` supports enabling the [DuckDB HTTP Server extension](https://github.com/Query-farm/duckdb-extension-httpserver) alongside the main feature service. This provides direct HTTP access to your DuckDB instance, meaning you can run arbitrary queries on your DuckDB database. 
+
+This includes **adding/updating/deleting** of geospatial data in your running `duckdb_featureserv` instance via a separate API!
+
+### Configuration 
+
+The HTTP server extension is controlled by configuration options in the `[DuckDB]` section:
+
+```toml
+[DuckDB]
+# Enable DuckDB HTTP server (default: false)
+EnableHttpServer = true
+# Port for the DuckDB HTTP server (default: 9001)
+Port = 9001
+# API key for authentication (leave empty for no authentication)
+ApiKey = "your_secure_api_key_here"
+```
+
+### Configuration Using Environment Variables
+
+```bash
+export DUCKDBFS_DUCKDB_ENABLEHTTPSERVER=true
+export DUCKDBFS_DUCKDB_PORT=9001
+export DUCKDBFS_DUCKDB_APIKEY=your_api_key
+```
+
+### Run the image
+
+If you want to use the Docker image with the DuckDB httpserver extension enabled, don't forget to expose its port as well (here: `9001`):
+
+```bash
+docker run --rm -dt -v "$PWD/data:/data" -e DUCKDBFS_DATABASE_PATH=/data/database.duckdb -p 9000:9000 -p 9001:9001 tobilg/duckdb_featureserv:latest
+```
+
+### Query the DuckDB API
+
+```bash
+curl -X POST --header "X-API-Key: supersecret" -d "SELECT 'hello', version()" "http://localhost:9001/?default_format=JSONCompact"
+```
+
+#### Insert new data
+If we assume an example table with the following structure:
+
+```text
+D select * from buildings;
+┌───────┬──────────┬────────┬───────────────────────────────────────────────────────────────────────┐
+│  id   │   name   │ height │                               footprint                               │
+│ int32 │ varchar  │ double │                               geometry                                │
+├───────┼──────────┼────────┼───────────────────────────────────────────────────────────────────────┤
+│   1   │ TV Tower │ 368.0  │ POLYGON ((13.4 52.5, 13.41 52.5, 13.41 52.51, 13.4 52.51, 13.4 52.5)) │
+└───────┴──────────┴────────┴───────────────────────────────────────────────────────────────────────┘
+```
+
+you can insert new geo data like this:
+
+```bash
+curl -X POST --header "X-API-Key: supersecret" -d "INSERT INTO buildings VALUES (2, 'Test', 100, ST_GeomFromGeoJSON('{\"type\":\"Point\",\"coordinates\":[1.0,2.0]}'))" "http://localhost:9001/?default_format=JSONCompact"
+```
+
+You should see an output like the following if the query was successful:
+
+```javascript
+{"meta":[{"name":"Count","type":"BIGINT"}],"data":[[1]],"rows":1,"statistics":{"elapsed":0.010999999940395355,"rows_read":0,"bytes_read":0}}
+```
+
+### Security Considerations
+
+- **API Key**: Always use a strong API key in production environments
+- **Network Access**: The HTTP server binds to `localhost` for security
+- **Port Selection**: Choose a port that doesn't conflict with other services (default: 9001)
+
+When enabled, you'll see startup messages indicating the HTTP server status:
+```
+INFO[0000] DuckDB HTTP server started on localhost:9001 with API key authentication
+```
+
+For detailed documentation, see [HTTPSERVER_EXTENSION.md](HTTPSERVER_EXTENSION.md).
 ```
 
 ## Run the service

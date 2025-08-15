@@ -14,7 +14,7 @@ HttpPort = 9000
 # Advertise URLs relative to this server name and path
 # The default is to look this up from incoming request headers
 # Note: do not add a trailing slash.
-#    UrlBase = "http://localhost:9000"
+# UrlBase = "http://localhost:9000"
 
 # Optional path to add to the service base URL
 # If set, all routes will be prefixed with this path
@@ -24,10 +24,10 @@ HttpPort = 9000
 # BasePath = "/"
 
 # String to return for Access-Control-Allow-Origin header
-#    CORSOrigins = "*"
+# CORSOrigins = "*"
 
 # set Debug to true to run in debug mode (can also be set on cmd-line)
-#    Debug = true
+# Debug = true
 
 # Read html templates from this directory
 AssetsPath = "./assets"
@@ -78,3 +78,11 @@ LimitMax = 10000
 [Website]
 # URL for the map view basemap
 BasemapUrl = "http://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png"
+
+[DuckDB]
+# Enable DuckDB HTTP server (default: false)
+EnableHttpServer = false
+# Port for the DuckDB HTTP server (default: 9001)
+Port = 9001
+# API key for authentication (leave empty for no authentication)
+#ApiKey = "supersecret"

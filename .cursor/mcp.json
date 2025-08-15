@@ -8,6 +8,9 @@
     },
     "pg_featureserv Docs": {
       "url": "https://gitmcp.io/CrunchyData/pg_featureserv"
+    },
+    "duckdb-extension-httpserver Docs": {
+      "url": "https://gitmcp.io/Query-farm/duckdb-extension-httpserver"
     }
   }
 }

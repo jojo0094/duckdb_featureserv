@@ -288,6 +288,156 @@ func TestEnvironmentVariableFormat(t *testing.T) {
 	}
 }
 
+// TestDuckDBConfigDefaults tests that DuckDB configuration has correct default values
+func TestDuckDBConfigDefaults(t *testing.T) {
+	clearConfigEnvVars()
+	defer clearConfigEnvVars()
+
+	viper.Reset()
+	InitConfig("", false)
+
+	// Test default values for DuckDB configuration
+	equals(t, false, Configuration.DuckDB.EnableHttpServer, "Default EnableHttpServer")
+	equals(t, 9001, Configuration.DuckDB.Port, "Default Port")
+	equals(t, "", Configuration.DuckDB.ApiKey, "Default ApiKey")
+}
+
+// TestDuckDBConfigFromFile tests that DuckDB configuration can be loaded from config file
+func TestDuckDBConfigFromFile(t *testing.T) {
+	clearConfigEnvVars()
+	defer clearConfigEnvVars()
+
+	configContent := `
+[DuckDB]
+EnableHttpServer = true
+Port = 8080
+ApiKey = "test_key_123"
+`
+
+	tempDir, err := os.MkdirTemp("", "duckdb_featureserv_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	configFile := filepath.Join(tempDir, "test_config.toml")
+	err = os.WriteFile(configFile, []byte(configContent), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	viper.Reset()
+	InitConfig(configFile, false)
+
+	equals(t, true, Configuration.DuckDB.EnableHttpServer, "EnableHttpServer from config")
+	equals(t, 8080, Configuration.DuckDB.Port, "Port from config")
+	equals(t, "test_key_123", Configuration.DuckDB.ApiKey, "ApiKey from config")
+}
+
+// TestDuckDBConfigFromEnvironment tests that DuckDB configuration can be loaded from environment variables
+func TestDuckDBConfigFromEnvironment(t *testing.T) {
+	clearConfigEnvVars()
+	defer clearConfigEnvVars()
+
+	// Set environment variables
+	os.Setenv("DUCKDBFS_DUCKDB_ENABLEHTTPSERVER", "true")
+	os.Setenv("DUCKDBFS_DUCKDB_PORT", "7777")
+	os.Setenv("DUCKDBFS_DUCKDB_APIKEY", "env_api_key")
+	defer func() {
+		os.Unsetenv("DUCKDBFS_DUCKDB_ENABLEHTTPSERVER")
+		os.Unsetenv("DUCKDBFS_DUCKDB_PORT")
+		os.Unsetenv("DUCKDBFS_DUCKDB_APIKEY")
+	}()
+
+	viper.Reset()
+	InitConfig("", false)
+
+	equals(t, true, Configuration.DuckDB.EnableHttpServer, "EnableHttpServer from env")
+	equals(t, 7777, Configuration.DuckDB.Port, "Port from env")
+	equals(t, "env_api_key", Configuration.DuckDB.ApiKey, "ApiKey from env")
+}
+
+// TestDuckDBConfigEnvironmentOverridesFile tests that environment variables override config file
+func TestDuckDBConfigEnvironmentOverridesFile(t *testing.T) {
+	clearConfigEnvVars()
+	defer clearConfigEnvVars()
+
+	// Create config file with one set of values
+	configContent := `
+[DuckDB]
+EnableHttpServer = false
+Port = 8080
+ApiKey = "file_key"
+`
+
+	tempDir, err := os.MkdirTemp("", "duckdb_featureserv_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	configFile := filepath.Join(tempDir, "test_config.toml")
+	err = os.WriteFile(configFile, []byte(configContent), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Set environment variables with different values
+	os.Setenv("DUCKDBFS_DUCKDB_ENABLEHTTPSERVER", "true")
+	os.Setenv("DUCKDBFS_DUCKDB_PORT", "9999")
+	os.Setenv("DUCKDBFS_DUCKDB_APIKEY", "env_override_key")
+	defer func() {
+		os.Unsetenv("DUCKDBFS_DUCKDB_ENABLEHTTPSERVER")
+		os.Unsetenv("DUCKDBFS_DUCKDB_PORT")
+		os.Unsetenv("DUCKDBFS_DUCKDB_APIKEY")
+	}()
+
+	viper.Reset()
+	InitConfig(configFile, false)
+
+	// Environment variables should take precedence
+	equals(t, true, Configuration.DuckDB.EnableHttpServer, "EnableHttpServer from env override")
+	equals(t, 9999, Configuration.DuckDB.Port, "Port from env override")
+	equals(t, "env_override_key", Configuration.DuckDB.ApiKey, "ApiKey from env override")
+}
+
+// TestDuckDBConfigPartialOverride tests that only set environment variables override config file
+func TestDuckDBConfigPartialOverride(t *testing.T) {
+	clearConfigEnvVars()
+	defer clearConfigEnvVars()
+
+	configContent := `
+[DuckDB]
+EnableHttpServer = true
+Port = 8080
+ApiKey = "file_key"
+`
+
+	tempDir, err := os.MkdirTemp("", "duckdb_featureserv_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	configFile := filepath.Join(tempDir, "test_config.toml")
+	err = os.WriteFile(configFile, []byte(configContent), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Only override the port via environment variable
+	os.Setenv("DUCKDBFS_DUCKDB_PORT", "5555")
+	defer os.Unsetenv("DUCKDBFS_DUCKDB_PORT")
+
+	viper.Reset()
+	InitConfig(configFile, false)
+
+	// Port should be from env, others from file
+	equals(t, true, Configuration.DuckDB.EnableHttpServer, "EnableHttpServer from config")
+	equals(t, 5555, Configuration.DuckDB.Port, "Port from env")
+	equals(t, "file_key", Configuration.DuckDB.ApiKey, "ApiKey from config")
+}
+
 // Helper function to clear all configuration-related environment variables
 func clearConfigEnvVars() {
 	envVars := []string{
@@ -297,6 +447,9 @@ func clearConfigEnvVars() {
 		"DUCKDBFS_DATABASE_TABLENAME",
 		"DUCKDBFS_SERVER_HTTPPORT",
 		"DUCKDBFS_SERVER_DEBUG",
+		"DUCKDBFS_DUCKDB_ENABLEHTTPSERVER",
+		"DUCKDBFS_DUCKDB_PORT",
+		"DUCKDBFS_DUCKDB_APIKEY",
 	}
 
 	for _, envVar := range envVars {

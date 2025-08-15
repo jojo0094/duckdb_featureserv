@@ -9,12 +9,12 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/tobilg/duckdb_featureserv/internal/api"
-	"github.com/tobilg/duckdb_featureserv/internal/conf"
-	"github.com/tobilg/duckdb_featureserv/internal/data"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
+	"github.com/tobilg/duckdb_featureserv/internal/api"
+	"github.com/tobilg/duckdb_featureserv/internal/conf"
+	"github.com/tobilg/duckdb_featureserv/internal/data"
 )
 
 /*
@@ -49,7 +49,7 @@ func createServers() {
 	// Use HTTPS only if server certificate and private key files specified
 	isTLSEnabled = conf.Configuration.IsTLSEnabled()
 
-	log.Infof("Serving HTTP  at %s", formatBaseURL("http://", bindAddress, confServ.BasePath))
+	log.Infof("Serving HTTP at %s", formatBaseURL("http://", bindAddress, confServ.BasePath))
 	if isTLSEnabled {
 		log.Infof("Serving HTTPS at %s", formatBaseURL("https://", bindAddressTLS, confServ.BasePath))
 	}

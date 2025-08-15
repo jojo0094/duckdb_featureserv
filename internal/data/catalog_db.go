@@ -104,6 +104,43 @@ func dbConnect() *sql.DB {
 		log.Warnf("Failed to load spatial extension: %v", err)
 	}
 
+	// Load httpserver extension if enabled
+	if conf.Configuration.DuckDB.EnableHttpServer {
+		// Install and load the httpserver extension from community repository
+		_, err = db.Exec("INSTALL httpserver FROM community;")
+		if err != nil {
+			log.Errorf("Failed to install httpserver extension: %v", err)
+		} else {
+			_, err = db.Exec("LOAD httpserver;")
+			if err != nil {
+				log.Errorf("Failed to load httpserver extension: %v", err)
+			} else {
+				// Start the HTTP server
+				port := conf.Configuration.DuckDB.Port
+				apiKey := conf.Configuration.DuckDB.ApiKey
+
+				var query string
+				var authMsg string
+				if apiKey != "" {
+					// Use API key authentication
+					query = fmt.Sprintf("SELECT httpserve_start('localhost', %d, '%s');", port, apiKey)
+					authMsg = "with API key authentication"
+				} else {
+					// No authentication
+					query = fmt.Sprintf("SELECT httpserve_start('localhost', %d, '');", port)
+					authMsg = "without authentication"
+				}
+
+				_, err = db.Exec(query)
+				if err != nil {
+					log.Errorf("Failed to start DuckDB HTTP server: %v", err)
+				} else {
+					log.Infof("DuckDB HTTP server started on http://localhost:%d %s", port, authMsg)
+				}
+			}
+		}
+	}
+
 	log.Infof("Connected to DuckDB: %s", dbPath)
 	return db
 }

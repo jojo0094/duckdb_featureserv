@@ -51,6 +51,10 @@ func setDefaultConfig() {
 	viper.SetDefault("Metadata.Description", "DuckDB Feature Server with Spatial Extension")
 
 	viper.SetDefault("Website.BasemapUrl", "")
+
+	viper.SetDefault("DuckDB.EnableHttpServer", false)
+	viper.SetDefault("DuckDB.Port", 9001)
+	viper.SetDefault("DuckDB.ApiKey", "")
 }
 
 // Config for system
@@ -60,6 +64,7 @@ type Config struct {
 	Metadata Metadata
 	Database Database
 	Website  Website
+	DuckDB   DuckDB
 }
 
 // Server config
@@ -102,6 +107,13 @@ type Metadata struct {
 
 type Website struct {
 	BasemapUrl string
+}
+
+// DuckDB config
+type DuckDB struct {
+	EnableHttpServer bool
+	Port             int
+	ApiKey           string
 }
 
 // IsHTTPSEnabled tests whether HTTPS is enabled
