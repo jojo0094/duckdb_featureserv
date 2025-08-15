@@ -718,14 +718,15 @@ func TestCORSHeaders(t *testing.T) {
 					if err != nil {
 						t.Fatal(err)
 					}
-					req.Header.Set("Origin", "https://example.com")
+					// Set the Origin header to match the expected origin for proper CORS testing
+					req.Header.Set("Origin", tc.expectedOrigin)
 
 					// Create response recorder
 					rr := httptest.NewRecorder()
 
 					// Create CORS handler for this test (matching the server setup)
 					corsOpt := handlers.AllowedOrigins([]string{conf.Configuration.Server.CORSOrigins})
-					corsHeaders := handlers.AllowedHeaders([]string{"Content-Type", "Accept", "Authorization", "X-Requested-With"})
+					corsHeaders := handlers.AllowedHeaders([]string{"Content-Type", "Accept", "Authorization", "X-Requested-With", "X-API-Key"})
 					corsMethods := handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"})
 					corsHandler := handlers.CORS(corsOpt, corsHeaders, corsMethods)(router)
 
@@ -789,7 +790,7 @@ func TestCORSHeadersWithPreflight(t *testing.T) {
 
 	// Create CORS handler (matching the server setup)
 	corsOpt := handlers.AllowedOrigins([]string{conf.Configuration.Server.CORSOrigins})
-	corsHeaders := handlers.AllowedHeaders([]string{"Content-Type", "Accept", "Authorization", "X-Requested-With"})
+	corsHeaders := handlers.AllowedHeaders([]string{"Content-Type", "Accept", "Authorization", "X-Requested-With", "X-API-Key"})
 	corsMethods := handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"})
 	corsHandler := handlers.CORS(corsOpt, corsHeaders, corsMethods)(router)
 
@@ -869,7 +870,7 @@ func TestCORSHeadersJSONEndpoints(t *testing.T) {
 
 			// Create CORS handler
 			corsOpt := handlers.AllowedOrigins([]string{conf.Configuration.Server.CORSOrigins})
-			corsHeaders := handlers.AllowedHeaders([]string{"Content-Type", "Accept", "Authorization", "X-Requested-With"})
+			corsHeaders := handlers.AllowedHeaders([]string{"Content-Type", "Accept", "Authorization", "X-Requested-With", "X-API-Key"})
 			corsMethods := handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"})
 			corsHandler := handlers.CORS(corsOpt, corsHeaders, corsMethods)(router)
 
