@@ -26,6 +26,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gorilla/handlers"
 	"github.com/tobilg/duckdb_featureserv/internal/api"
 	"github.com/tobilg/duckdb_featureserv/internal/conf"
 	"github.com/tobilg/duckdb_featureserv/internal/data"
@@ -644,6 +645,255 @@ func TestUIEnabledByDefault(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("HTML route %s should work when UI enabled", tc), func(t *testing.T) {
 			doRequestStatus(t, tc, http.StatusOK)
+		})
+	}
+}
+
+// TestCORSHeaders verifies that CORS headers are properly returned when CORSOrigins is configured
+func TestCORSHeaders(t *testing.T) {
+	// Save original config
+	origConfig := conf.Configuration
+	defer func() {
+		conf.Configuration = origConfig
+		setup(basePath)
+		Initialize()
+	}()
+
+	// Test different CORS configurations
+	testCases := []struct {
+		name           string
+		corsOrigins    string
+		expectedOrigin string
+	}{
+		{
+			name:           "Wildcard origin",
+			corsOrigins:    "*",
+			expectedOrigin: "*",
+		},
+		{
+			name:           "Specific origin",
+			corsOrigins:    "https://example.com",
+			expectedOrigin: "https://example.com",
+		},
+		{
+			name:           "Localhost origin",
+			corsOrigins:    "http://localhost:3000",
+			expectedOrigin: "http://localhost:3000",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Set up configuration with specific CORS origin
+			testConfig := origConfig
+			testConfig.Server.CORSOrigins = tc.corsOrigins
+			conf.Configuration = testConfig
+
+			// Re-setup router with new config
+			router = initRouter(basePath)
+			Initialize()
+
+			// Test endpoints that should return CORS headers, including explicit JSON endpoints
+			endpoints := []string{
+				"/",
+				"/index.json",
+				"/collections",
+				"/collections.json",
+				"/collections/mock_a",
+				"/collections/mock_a.json",
+				"/collections/mock_a/items",
+				"/collections/mock_a/items.json",
+				"/conformance",
+				"/conformance.json",
+				"/functions",
+				"/functions.json",
+				"/api",
+				"/api.json",
+			}
+
+			for _, endpoint := range endpoints {
+				t.Run(fmt.Sprintf("endpoint_%s", endpoint), func(t *testing.T) {
+					// Create request with Origin header to trigger CORS
+					req, err := http.NewRequest("GET", basePath+endpoint, nil)
+					if err != nil {
+						t.Fatal(err)
+					}
+					req.Header.Set("Origin", "https://example.com")
+
+					// Create response recorder
+					rr := httptest.NewRecorder()
+
+					// Create CORS handler for this test (matching the server setup)
+					corsOpt := handlers.AllowedOrigins([]string{conf.Configuration.Server.CORSOrigins})
+					corsHeaders := handlers.AllowedHeaders([]string{"Content-Type", "Accept", "Authorization", "X-Requested-With"})
+					corsMethods := handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"})
+					corsHandler := handlers.CORS(corsOpt, corsHeaders, corsMethods)(router)
+
+					// Serve the request
+					corsHandler.ServeHTTP(rr, req)
+
+					// Check that request was successful
+					if rr.Code != http.StatusOK {
+						t.Errorf("Expected status 200, got %d for endpoint %s", rr.Code, endpoint)
+					}
+
+					// Check CORS headers
+					corsHeader := rr.Header().Get("Access-Control-Allow-Origin")
+					if corsHeader == "" {
+						t.Errorf("Expected Access-Control-Allow-Origin header to be present for endpoint %s, but it was empty", endpoint)
+					}
+
+					if corsHeader != tc.expectedOrigin {
+						t.Errorf("Expected Access-Control-Allow-Origin: %s, got: %s for endpoint %s", tc.expectedOrigin, corsHeader, endpoint)
+					}
+
+					t.Logf("✓ Endpoint %s returned Access-Control-Allow-Origin: %s", endpoint, corsHeader)
+				})
+			}
+		})
+	}
+}
+
+// TestCORSHeadersWithPreflight tests CORS preflight requests
+func TestCORSHeadersWithPreflight(t *testing.T) {
+	// Save original config
+	origConfig := conf.Configuration
+	defer func() {
+		conf.Configuration = origConfig
+		setup(basePath)
+		Initialize()
+	}()
+
+	// Set up configuration with wildcard CORS
+	testConfig := origConfig
+	testConfig.Server.CORSOrigins = "*"
+	conf.Configuration = testConfig
+
+	// Re-setup router with new config
+	router = initRouter(basePath)
+	Initialize()
+
+	// Test preflight request
+	req, err := http.NewRequest("OPTIONS", basePath+"/collections.json", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Set required CORS preflight headers
+	req.Header.Set("Origin", "https://example.com")
+	req.Header.Set("Access-Control-Request-Method", "GET")
+	req.Header.Set("Access-Control-Request-Headers", "Content-Type")
+
+	// Create response recorder
+	rr := httptest.NewRecorder()
+
+	// Create CORS handler (matching the server setup)
+	corsOpt := handlers.AllowedOrigins([]string{conf.Configuration.Server.CORSOrigins})
+	corsHeaders := handlers.AllowedHeaders([]string{"Content-Type", "Accept", "Authorization", "X-Requested-With"})
+	corsMethods := handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"})
+	corsHandler := handlers.CORS(corsOpt, corsHeaders, corsMethods)(router)
+
+	// Serve the request
+	corsHandler.ServeHTTP(rr, req)
+
+	// Check CORS headers in preflight response
+	corsOrigin := rr.Header().Get("Access-Control-Allow-Origin")
+	if corsOrigin != "*" {
+		t.Errorf("Expected Access-Control-Allow-Origin: *, got: %s", corsOrigin)
+	}
+
+	// Check for other expected CORS headers in preflight response
+	allowMethods := rr.Header().Get("Access-Control-Allow-Methods")
+	allowHeaders := rr.Header().Get("Access-Control-Allow-Headers")
+
+	t.Logf("✓ Preflight request returned Access-Control-Allow-Origin: %s", corsOrigin)
+	t.Logf("✓ Preflight request returned Access-Control-Allow-Methods: %s", allowMethods)
+	t.Logf("✓ Preflight request returned Access-Control-Allow-Headers: %s", allowHeaders)
+	t.Logf("✓ Preflight response status: %d", rr.Code)
+
+	// Print all headers for debugging
+	t.Logf("All response headers: %v", rr.Header())
+
+	// Note: Access-Control-Allow-Methods is only returned when needed by the CORS middleware
+	// The important thing is that the preflight request succeeds (200 OK) and includes
+	// the appropriate Access-Control-Allow-Origin and Access-Control-Allow-Headers
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected preflight request to succeed with 200 OK, got: %d", rr.Code)
+	}
+}
+
+// TestCORSHeadersJSONEndpoints specifically tests JSON endpoints with CORS
+func TestCORSHeadersJSONEndpoints(t *testing.T) {
+	// Save original config
+	origConfig := conf.Configuration
+	defer func() {
+		conf.Configuration = origConfig
+		setup(basePath)
+		Initialize()
+	}()
+
+	// Set up configuration with wildcard CORS
+	testConfig := origConfig
+	testConfig.Server.CORSOrigins = "*"
+	conf.Configuration = testConfig
+
+	// Re-setup router with new config
+	router = initRouter(basePath)
+	Initialize()
+
+	// JSON-specific endpoints to test
+	jsonEndpoints := []struct {
+		path        string
+		description string
+	}{
+		{"/collections.json", "Collections JSON endpoint"},
+		{"/collections/mock_a.json", "Collection JSON endpoint"},
+		{"/collections/mock_a/items.json", "Items JSON endpoint"},
+		{"/conformance.json", "Conformance JSON endpoint"},
+		{"/functions.json", "Functions JSON endpoint"},
+		{"/api.json", "OpenAPI JSON endpoint"},
+	}
+
+	for _, endpoint := range jsonEndpoints {
+		t.Run(endpoint.description, func(t *testing.T) {
+			// Create request with Origin header and Accept application/json
+			req, err := http.NewRequest("GET", basePath+endpoint.path, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			req.Header.Set("Origin", "https://example.com")
+			req.Header.Set("Accept", "application/json")
+
+			// Create response recorder
+			rr := httptest.NewRecorder()
+
+			// Create CORS handler
+			corsOpt := handlers.AllowedOrigins([]string{conf.Configuration.Server.CORSOrigins})
+			corsHeaders := handlers.AllowedHeaders([]string{"Content-Type", "Accept", "Authorization", "X-Requested-With"})
+			corsMethods := handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"})
+			corsHandler := handlers.CORS(corsOpt, corsHeaders, corsMethods)(router)
+
+			// Serve the request
+			corsHandler.ServeHTTP(rr, req)
+
+			// Check that request was successful
+			if rr.Code != http.StatusOK {
+				t.Errorf("Expected status 200, got %d for %s", rr.Code, endpoint.path)
+			}
+
+			// Check CORS headers
+			corsHeader := rr.Header().Get("Access-Control-Allow-Origin")
+			if corsHeader != "*" {
+				t.Errorf("Expected Access-Control-Allow-Origin: *, got: %s for %s", corsHeader, endpoint.path)
+			}
+
+			// Check Content-Type is JSON
+			contentType := rr.Header().Get("Content-Type")
+			if !strings.Contains(contentType, "application/json") && !strings.Contains(contentType, "application/geo+json") {
+				t.Errorf("Expected JSON content type for %s, got: %s", endpoint.path, contentType)
+			}
+
+			t.Logf("✓ %s returned CORS header: %s and content-type: %s", endpoint.path, corsHeader, contentType)
 		})
 	}
 }

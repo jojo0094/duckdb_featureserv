@@ -64,7 +64,9 @@ func createServers() {
 	// ----  Handler chain  --------
 	// set CORS handling according to config
 	corsOpt := handlers.AllowedOrigins([]string{conf.Configuration.Server.CORSOrigins})
-	corsHandler := handlers.CORS(corsOpt)(router)
+	corsHeaders := handlers.AllowedHeaders([]string{"Content-Type", "Accept", "Authorization", "X-Requested-With", "X-API-Key"})
+	corsMethods := handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"})
+	corsHandler := handlers.CORS(corsOpt, corsHeaders, corsMethods)(router)
 	compressHandler := handlers.CompressHandler(corsHandler)
 
 	// Use a TimeoutHandler to ensure a request does not run past the WriteTimeout duration.
